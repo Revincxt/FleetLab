@@ -31,7 +31,7 @@ aal export-gallery \
 
 The checked-in gallery contains four matched 16×12 warehouse layouts: rack
 islands, parallel aisles, a cross-dock spine, and a serpentine corridor. Each
-case has four orders, three charging positions, and two paired aisle
+case has six orders, three charging positions, and two paired aisle
 closure/reopening events. Every closure preserves a valid detour.
 The artifact records the root seed and per-case fingerprints; decision timing
 is deliberately marked as unmeasured in the portable replay.

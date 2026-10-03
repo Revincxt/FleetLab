@@ -117,6 +117,7 @@ const iconPaths = {
   pause: "M8 5v14M16 5v14",
   back: "m15 5-9 7 9 7M4 5v14",
   next: "m9 5 9 7-9 7M20 5v14",
+  restart: "M3 10a9 9 0 1 1 1 7M3 4v6h6",
   bolt: "m13 2-9 12h7l-1 8 10-13h-7l1-7Z",
   check: "m5 12 4 4L19 6",
   arrow: "M7 17 17 7M7 7h10v10",
@@ -282,6 +283,7 @@ export default function Home() {
     useState<(typeof playbackRates)[number]>(1);
   const [showRecordedRemainder, setShowRecordedRemainder] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("replay");
+  const [inspectorView, setInspectorView] = useState<"state" | "orders" | "compare">("state");
 
   useEffect(() => {
     fetch("./demo-data.json")
@@ -360,8 +362,10 @@ export default function Home() {
     const handleKeyboard = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (
+        !agent?.trace.length ||
         workspaceView !== "replay" ||
-        target?.matches("input, select, button, a, textarea")
+        event.altKey || event.ctrlKey || event.metaKey ||
+        target?.closest("input, select, button, a, textarea, [contenteditable='true']")
       ) {
         return;
       }
@@ -372,17 +376,19 @@ export default function Home() {
         setPlaying((value) => !value);
       }
       if (event.key === "ArrowLeft") {
+        event.preventDefault();
         setPlaying(false);
         setTime((current) => Math.max(1, current - 1));
       }
       if (event.key === "ArrowRight") {
+        event.preventDefault();
         setPlaying(false);
         setTime((current) => Math.min(maximumTime, current + 1));
       }
     };
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [maximumTime, time, workspaceView]);
+  }, [agent, maximumTime, time, workspaceView]);
 
   const selectCase = (nextCaseId: string) => {
     if (!bundle) return;
@@ -404,6 +410,7 @@ export default function Home() {
     setCaseId(nextCase.caseId);
     setAgentId(nextAgent?.id ?? "");
     setReferenceId(nextReference);
+    if (!nextReference && inspectorView === "compare") setInspectorView("state");
     setTime(1);
     setPlaying(false);
     const url = new URL(window.location.href);
@@ -437,6 +444,7 @@ export default function Home() {
         (candidate) => candidate.id === nextReferenceId,
       ) ?? null;
     setReferenceId(nextReferenceId);
+    setInspectorView(nextReference ? "compare" : "state");
     setTime((current) =>
       Math.min(current, replayEndTime(scenario, agent, nextReference)),
     );
@@ -566,10 +574,9 @@ export default function Home() {
       : batteryPercent <= 20
         ? { label: "Low battery", tone: "warning" }
         : { label: "State valid", tone: "ok" };
-  const caseNumber = String(bundle.cases.indexOf(selectedCase) + 1).padStart(
-    2,
-    "0",
-  );
+  const nextEvent = scenario.events
+    .filter((event) => event.time > time && event.time <= maximumTime)
+    .sort((a, b) => a.time - b.time)[0];
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -588,10 +595,10 @@ export default function Home() {
         </a>
         <div className="header-meta">
           <span className="header-context">
-            Workspace <span>/</span> Replay explorer
+            Replay explorer
           </span>
           <div className="header-actions">
-            <span className="recording-label">
+            <span className="recording-label" title="Recorded demonstration, not a held-out benchmark">
               <Icon name="clock" />
               Recorded demo
             </span>
@@ -617,7 +624,7 @@ export default function Home() {
           </header>
 
           <div className="scenario-list">
-            {bundle.cases.map((candidate, index) => {
+            {bundle.cases.map((candidate) => {
               const isSelected = candidate.caseId === selectedCase.caseId;
               return (
                 <button
@@ -628,13 +635,7 @@ export default function Home() {
                 >
                   <MapThumbnail demoCase={candidate} />
                   <span className="scenario-copy">
-                    <small>Case {String(index + 1).padStart(2, "0")}</small>
                     <strong>{candidate.label}</strong>
-                    <i>
-                      {candidate.scenario.width}×{candidate.scenario.height}
-                      <b>·</b>
-                      {candidate.scenario.orders.length} orders
-                    </i>
                   </span>
                   {isSelected ? (
                     <span className="case-selected">
@@ -645,16 +646,16 @@ export default function Home() {
               );
             })}
           </div>
+          <div className="rail-footer">
+            <span title="Play or pause"><kbd>Space</kbd> Play</span>
+            <span title="Previous or next step"><kbd>←</kbd><kbd>→</kbd> Step</span>
+          </div>
         </aside>
 
         <article className="experiment-view">
           <header className="experiment-heading">
             <div className="heading-row">
               <div>
-                <p className="eyebrow">
-                  <span className="eyebrow-line" />
-                  Scenario {caseNumber}
-                </p>
                 <h1>{selectedCase.label}</h1>
                 <span className="difficulty-badge">
                   {selectedCase.display?.difficulty ?? "Recorded case"}
@@ -665,7 +666,6 @@ export default function Home() {
                   className={workspaceView === "replay" ? "is-active" : ""}
                   onClick={() => setWorkspaceView("replay")}
                   aria-pressed={workspaceView === "replay"}
-                  aria-controls="replay-workspace"
                 >
                   <Icon name="play" />
                   Replay
@@ -677,7 +677,6 @@ export default function Home() {
                     setWorkspaceView("outcomes");
                   }}
                   aria-pressed={workspaceView === "outcomes"}
-                  aria-controls="outcomes-workspace"
                 >
                   <Icon name="chart" />
                   Outcomes
@@ -733,7 +732,7 @@ export default function Home() {
                   <Icon name="route" />
                 </span>
                 <div>
-                  <h2 id="replay-title">Simulation replay</h2>
+                  <h2 id="replay-title">Replay</h2>
                   <span
                     className={`playback-status ${playing ? "is-playing" : ""}`}
                     aria-live="polite"
@@ -748,7 +747,7 @@ export default function Home() {
                 </div>
               </div>
               <label className="field-control">
-                <span>Primary controller</span>
+                <span><b className="controller-letter">A</b> Primary controller</span>
                 <select
                   value={agent.id}
                   onChange={(event) => selectAgent(event.target.value)}
@@ -761,12 +760,12 @@ export default function Home() {
                 </select>
               </label>
               <label className="field-control">
-                <span>Compare with</span>
+                <span><b className="controller-letter is-reference">B</b> Compare with</span>
                 <select
                   value={reference?.id ?? ""}
                   onChange={(event) => selectReference(event.target.value)}
                 >
-                  <option value="">None</option>
+                  <option value="">Add a comparison</option>
                   {selectedCase.agents
                     .filter((candidate) => candidate.id !== agent.id)
                     .map((candidate) => (
@@ -808,8 +807,8 @@ export default function Home() {
                   <div
                     className="warehouse-map"
                     style={{
-                      aspectRatio: `${scenario.width} / ${scenario.height}`,
-                    }}
+                      "--map-ratio": scenario.width / scenario.height,
+                    } as CSSProperties}
                     role="img"
                     aria-label={`${selectedCase.label}, ${scenario.width} by ${scenario.height} warehouse map at time ${time}. Primary robot at column ${robotPosition.x}, row ${robotPosition.y}. ${blocked.size} aisle closures active. ${deliveredOrderCount} orders delivered, ${carriedOrderCount} carried, ${readyOrderCount} ready, and ${queuedOrderCount} queued.`}
                   >
@@ -935,11 +934,11 @@ export default function Home() {
                   </span>
                   <span>
                     <i className="legend-charger" />
-                    charger
+                    Charger
                   </span>
                   <span>
                     <i className="legend-closure" />
-                    temporary closure
+                    Closure
                   </span>
                 </div>
 
@@ -949,6 +948,14 @@ export default function Home() {
                     role="group"
                     aria-label="Replay transport"
                   >
+                    <button
+                      onClick={() => seek(1)}
+                      disabled={time <= 1 && !playing}
+                      aria-label="Restart replay"
+                      title="Restart replay"
+                    >
+                      <Icon name="restart" />
+                    </button>
                     <button
                       onClick={() => seek(time - 1)}
                       disabled={time <= 1}
@@ -1050,6 +1057,13 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
+                <figcaption className="replay-caption">
+                  {nextEvent ? (
+                    <button onClick={() => seek(nextEvent.time)} title="Jump to the next scenario event">
+                      Next: {eventLabels[nextEvent.kind]} <span>t = {nextEvent.time}</span><Icon name="arrow" />
+                    </button>
+                  ) : <span>All events replayed</span>}
+                </figcaption>
               </figure>
 
               <aside
@@ -1062,7 +1076,6 @@ export default function Home() {
                       <Icon name="robot" />
                     </span>
                     <div>
-                      <small>Primary controller</small>
                       <h3 id="inspector-title">{agent.label}</h3>
                     </div>
                   </div>
@@ -1071,8 +1084,23 @@ export default function Home() {
                     {stateStatus.label}
                   </span>
                 </header>
+                <nav className="inspector-tabs" aria-label="Controller details">
+                  {(["state", "orders", "compare"] as const).map((view) => (
+                    <button
+                      key={view}
+                      className={inspectorView === view ? "is-active" : ""}
+                      aria-pressed={inspectorView === view}
+                      disabled={view === "compare" && !reference}
+                      title={view === "compare" && !reference ? "Add a comparison controller first" : undefined}
+                      onClick={() => setInspectorView(view)}
+                    >
+                      {view === "state" ? "State" : view === "orders" ? "Orders" : "Compare"}
+                    </button>
+                  ))}
+                </nav>
+                <div className="inspector-content">
 
-                <section className="state-block">
+                <section className="state-block" hidden={inspectorView !== "state"}>
                   <h4>
                     {primaryAtTerminal
                       ? `Final state · trace ended at t = ${agentEndTime}`
@@ -1109,7 +1137,7 @@ export default function Home() {
                   </dl>
                 </section>
 
-                <section className="battery-block">
+                <section className="battery-block" hidden={inspectorView !== "state"}>
                   <div>
                     <h4>
                       <Icon name="bolt" />
@@ -1135,8 +1163,7 @@ export default function Home() {
                   </p>
                 </section>
 
-                <section className="order-block">
-                  <h4>Order lifecycle</h4>
+                <section className="order-block" hidden={inspectorView !== "orders"}>
                   <div className="order-counts">
                     <div className="delivered-count">
                       <strong>{deliveredOrderCount}</strong>
@@ -1167,6 +1194,7 @@ export default function Home() {
                           <span className="order-number">
                             {String(index + 1).padStart(2, "0")}
                           </span>
+                          <span className="order-detail">Order {index + 1}<small>Due at t = {order.deadline}</small></span>
                           <span className="order-status">
                             {state === "delivered" ? (
                               <Icon name="check" />
@@ -1180,7 +1208,7 @@ export default function Home() {
                 </section>
 
                 {reference && referenceStep && referencePosition ? (
-                  <section className="comparison-state">
+                  <section className="comparison-state" hidden={inspectorView !== "compare"}>
                     <header>
                       <span className="reference-dot" />
                       <div>
@@ -1230,6 +1258,11 @@ export default function Home() {
                     </dl>
                   </section>
                 ) : null}
+                </div>
+                <div className="inspector-summary">
+                  <div><span>Delivered</span><strong>{deliveredOrderCount}<small> / {scenario.orders.length}</small></strong></div>
+                  <div><span>Aisles closed</span><strong>{blocked.size}</strong></div>
+                </div>
               </aside>
             </div>
           </section>
@@ -1249,7 +1282,7 @@ export default function Home() {
                 <h2 id="results-title">Controller outcomes</h2>
               </div>
               <span className="section-subtitle">
-                Final episode results <span>·</span>{" "}
+                Final results <span>·</span>{" "}
                 {selectedCase.agents.length} controllers
               </span>
             </header>
@@ -1275,7 +1308,11 @@ export default function Home() {
                       <th scope="row">
                         <button
                           className="controller-option"
-                          onClick={() => selectAgent(candidate.id)}
+                          onClick={() => {
+                            selectAgent(candidate.id);
+                            setWorkspaceView("replay");
+                            setInspectorView("state");
+                          }}
                           aria-label={`Replay ${candidate.label}`}
                           aria-pressed={candidate.id === agent.id}
                         >
