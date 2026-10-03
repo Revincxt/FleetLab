@@ -21,8 +21,14 @@
   --reference-route-color: #718095;
   --rail-width: 244px;
   --sans:
-    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "Segoe UI", sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --text-caption: 11px;
+  --text-label: 12px;
+  --text-body: 14px;
+  --text-heading: 16px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
 }
 
 * {
@@ -135,18 +141,18 @@ button:active:not(:disabled) {
   height: 22px;
 }
 .brand-name {
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.4px;
+  font-size: var(--text-heading);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.2px;
   line-height: 1.2;
 }
 .brand-name > span {
   display: block;
   margin-top: 3px;
   color: #9fb7b0;
-  font-size: 11px;
-  font-weight: 450;
-  letter-spacing: 0.6px;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0;
 }
 .header-meta {
   display: flex;
@@ -188,8 +194,8 @@ button:active:not(:disabled) {
   padding: 7px 11px;
   border: 1px solid var(--rule-strong);
   border-radius: 7px;
-  font-size: 12px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
 }
 .header-actions > a:hover {
   border-color: var(--accent);
@@ -240,16 +246,16 @@ button:active:not(:disabled) {
 .rail-heading h2 {
   margin: 0;
   color: #b7ccc5;
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0.3px;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
 }
 .rail-heading > span {
   padding: 2px 6px;
   border: 1px solid #38504a;
   border-radius: 5px;
   color: #9db9af;
-  font: 10px/1.5 var(--sans);
+  font: var(--weight-medium) var(--text-caption)/1.4 var(--sans);
 }
 .scenario-list {
   display: flex;
@@ -308,15 +314,14 @@ button:active:not(:disabled) {
 }
 .scenario-copy small {
   color: #9fb9ab;
-  font: 9px/1.4 var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
+  font: var(--weight-medium) var(--text-caption)/1.4 var(--sans);
+  letter-spacing: 0;
 }
 .scenario-copy strong {
   margin-top: 5px;
   color: #e8f0e9;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
   line-height: 1.4;
 }
 .scenario-copy > i {
@@ -325,7 +330,7 @@ button:active:not(:disabled) {
   gap: 5px;
   margin-top: 7px;
   color: #9bb6a7;
-  font: normal 9px/1.5 var(--sans);
+  font: normal var(--text-caption)/1.5 var(--sans);
   white-space: nowrap;
 }
 .scenario-copy b {
@@ -367,9 +372,9 @@ button:active:not(:disabled) {
   gap: 7px;
   margin: 0 0 9px;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.1px;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.45px;
   text-transform: uppercase;
 }
 .eyebrow-line {
@@ -383,9 +388,9 @@ button:active:not(:disabled) {
   color: var(--ink-strong);
   font-size: clamp(26px, 2.6vw, 34px);
   font-family: var(--sans);
-  font-weight: 680;
+  font-weight: var(--weight-semibold);
   line-height: 1.25;
-  letter-spacing: -1.2px;
+  letter-spacing: -0.55px;
 }
 .view-switcher {
   display: inline-flex;
@@ -408,8 +413,8 @@ button:active:not(:disabled) {
   border-radius: 7px;
   color: var(--muted);
   background: transparent;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
 }
 .view-switcher button:hover:not(.is-active) {
   color: var(--ink-strong);
@@ -432,7 +437,7 @@ button:active:not(:disabled) {
   border-radius: 5px;
   color: #657c6e;
   background: #edf2ef;
-  font-size: 10px;
+  font-size: var(--text-caption);
   vertical-align: middle;
 }
 .case-facts {
@@ -457,7 +462,7 @@ button:active:not(:disabled) {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .case-facts dt .icon {
   width: 13px;
@@ -466,8 +471,8 @@ button:active:not(:disabled) {
 .case-facts dd {
   margin: 7px 0 0;
   color: var(--ink-strong);
-  font: 560 19px/1.2 var(--sans);
-  letter-spacing: -0.8px;
+  font: var(--weight-semibold) 18px/1.2 var(--sans);
+  letter-spacing: -0.25px;
   white-space: nowrap;
 }
 .case-facts dd > span {
@@ -477,7 +482,7 @@ button:active:not(:disabled) {
 .case-facts dd > small {
   margin-left: 5px;
   color: var(--muted);
-  font: 10px var(--sans);
+  font: var(--text-caption) var(--sans);
   letter-spacing: 0;
 }
 .control-bar {
@@ -518,9 +523,9 @@ button:active:not(:disabled) {
 .section-heading h2 {
   margin: 0;
   color: var(--ink-strong);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
 }
 .playback-status {
   display: inline-flex;
@@ -551,7 +556,7 @@ button:active:not(:disabled) {
 }
 .field-control > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .field-control select {
   width: 100%;
@@ -564,7 +569,7 @@ button:active:not(:disabled) {
   background: #fff
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2375858a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
     no-repeat right 11px center;
-  font-size: 12px;
+  font-size: var(--text-label);
   cursor: pointer;
 }
 .field-control select:hover {
@@ -580,7 +585,7 @@ button:active:not(:disabled) {
   gap: 8px;
   margin-top: 20px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -653,8 +658,8 @@ button:active:not(:disabled) {
   color: #8a9d92;
 }
 .map-title strong {
-  font-size: 12px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
 }
 .time-readout {
   display: flex;
@@ -665,18 +670,18 @@ button:active:not(:disabled) {
 .time-readout > span {
   margin-right: 4px;
   color: var(--muted);
-  font: 9px var(--sans);
+  font: var(--text-caption) var(--sans);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.35px;
 }
 .time-readout > strong {
   color: var(--ink-strong);
-  font-size: 17px;
-  font-weight: 550;
+  font-size: var(--text-heading);
+  font-weight: var(--weight-semibold);
 }
 .time-readout > i {
   color: #71867a;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-style: normal;
 }
 
@@ -776,7 +781,7 @@ button:active:not(:disabled) {
   z-index: 9;
   display: grid;
   place-items: center;
-  font: 650 8px/1 var(--sans);
+  font: var(--weight-semibold) 8px/1 var(--sans);
 }
 .charger-marker {
   right: 3px;
@@ -878,7 +883,7 @@ button:active:not(:disabled) {
   padding: 13px 21px;
   border-top: 1px solid var(--rule);
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .map-legend > span {
   display: inline-flex;
@@ -972,8 +977,8 @@ button:active:not(:disabled) {
   color: white;
   background: var(--accent);
   box-shadow: 0 2px 4px #168f7926;
-  font-size: 11px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
 }
 .transport-controls .play-button:hover:not(:disabled) {
   color: white;
@@ -993,7 +998,7 @@ button:active:not(:disabled) {
   border-radius: 5px;
   color: var(--muted);
   background: transparent;
-  font: 10px var(--sans);
+  font: var(--weight-medium) var(--text-caption) var(--sans);
 }
 .speed-control button:hover {
   color: var(--accent);
@@ -1103,7 +1108,7 @@ button:active:not(:disabled) {
   justify-content: space-between;
   margin-top: 2px;
   color: var(--faint);
-  font: 8px/1 var(--sans);
+  font: 10px/1 var(--sans);
 }
 
 /* Agent inspector */
@@ -1141,14 +1146,14 @@ button:active:not(:disabled) {
 .comparison-state small {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .inspector-heading h3 {
   margin: 3px 0 0;
   color: var(--ink-strong);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
 }
 .state-badge {
   display: inline-flex;
@@ -1158,7 +1163,7 @@ button:active:not(:disabled) {
   border-radius: 5px;
   color: #62786b;
   background: #f0f4f1;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .state-badge > i {
   width: 4px;
@@ -1191,8 +1196,8 @@ button:active:not(:disabled) {
 .order-block h4 {
   margin: 0;
   color: #52685e;
-  font-size: 11px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
 }
 .state-table {
   margin: 9px 0 0;
@@ -1208,14 +1213,14 @@ button:active:not(:disabled) {
 .state-table dt,
 .comparison-state dt {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .state-table dd,
 .comparison-state dd {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font: 11px/1.5 var(--sans);
+  font: var(--weight-medium) var(--text-caption)/1.5 var(--sans);
   text-align: right;
 }
 .state-table > div:last-child dd {
@@ -1236,8 +1241,8 @@ button:active:not(:disabled) {
 }
 .battery-block > div:first-child > span {
   color: var(--ink-strong);
-  font: 600 18px/1 var(--sans);
-  letter-spacing: -0.6px;
+  font: var(--weight-semibold) 18px/1 var(--sans);
+  letter-spacing: -0.2px;
 }
 .battery-block small {
   margin-left: 2px;
@@ -1264,7 +1269,7 @@ button:active:not(:disabled) {
 .battery-capacity {
   margin: 7px 0 0;
   color: var(--muted);
-  font: 9px/1.3 var(--sans);
+  font: var(--text-caption)/1.3 var(--sans);
 }
 .order-counts {
   display: grid;
@@ -1282,13 +1287,13 @@ button:active:not(:disabled) {
 .order-counts strong {
   display: block;
   color: #60766b;
-  font: 600 16px/1.2 var(--sans);
+  font: var(--weight-semibold) var(--text-heading)/1.2 var(--sans);
 }
 .order-counts span {
   display: block;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .order-counts .delivered-count {
   background: #eef6f0;
@@ -1310,7 +1315,7 @@ button:active:not(:disabled) {
   gap: 8px;
   min-height: 32px;
   color: #607869;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .order-number {
   display: grid;
@@ -1320,7 +1325,7 @@ button:active:not(:disabled) {
   border: 1px solid #e3ebe6;
   border-radius: 5px;
   color: #6a8373;
-  font: 8px var(--sans);
+  font: var(--weight-medium) 10px var(--sans);
 }
 .order-status {
   display: inline-flex;
@@ -1328,7 +1333,7 @@ button:active:not(:disabled) {
   gap: 3px;
   margin-left: auto;
   color: #6d8475;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .order-status .icon {
   width: 11px;
@@ -1361,15 +1366,15 @@ button:active:not(:disabled) {
 .comparison-state header strong {
   display: block;
   margin-top: 3px;
-  font-size: 12px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
 }
 .comparison-state dl {
   margin: 9px 0 0;
 }
 .comparison-state dt small {
   margin-top: 3px;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 /* Outcomes */
@@ -1391,7 +1396,7 @@ button:active:not(:disabled) {
 }
 .section-subtitle {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .section-subtitle > span {
   margin: 0 6px;
@@ -1407,7 +1412,7 @@ button:active:not(:disabled) {
   width: 100%;
   min-width: 620px;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--text-label);
 }
 .results-table caption {
   position: absolute;
@@ -1429,8 +1434,8 @@ button:active:not(:disabled) {
   height: 38px;
   color: #6b7e72;
   background: #f9fbfa;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
 }
 .results-table th:first-child {
   width: 36%;
@@ -1438,7 +1443,7 @@ button:active:not(:disabled) {
 }
 .results-table td {
   color: #566c60;
-  font: 12px var(--sans);
+  font: var(--weight-medium) var(--text-label) var(--sans);
 }
 .results-table tbody tr:last-child th,
 .results-table tbody tr:last-child td {
@@ -1483,13 +1488,13 @@ button:active:not(:disabled) {
 }
 .controller-option strong {
   color: var(--ink-strong);
-  font-size: 12px;
-  font-weight: 550;
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
 }
 .controller-option small {
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 400;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-regular);
 }
 .controller-option > b {
   display: grid;
@@ -1501,7 +1506,7 @@ button:active:not(:disabled) {
   border-radius: 5px;
   color: #648873;
   background: white;
-  font: 9px var(--sans);
+  font: var(--weight-semibold) var(--text-caption) var(--sans);
 }
 .metric-value {
   display: inline-block;
@@ -1547,7 +1552,7 @@ button:active:not(:disabled) {
   color: var(--ink-strong);
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.15px;
 }
 .loading-mark::before {
   display: block;
@@ -1569,7 +1574,7 @@ button:active:not(:disabled) {
   margin: 7px 0 0;
   color: var(--ink-strong);
   font-size: 25px;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.35px;
 }
 .loading-shell > a {
   margin-top: 18px;
@@ -1663,7 +1668,7 @@ button:active:not(:disabled) {
   }
   .case-facts dd {
     margin-top: 4px;
-    font-size: 17px;
+    font-size: 18px;
   }
   .replay-section {
     display: flex;
@@ -1994,11 +1999,11 @@ button:active:not(:disabled) {
     height: 19px;
   }
   .brand-name {
-    font-size: 15px;
+    font-size: var(--text-heading);
   }
   .brand-name > span {
     color: #678171;
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .header-meta {
     padding: 0 16px;
@@ -2023,11 +2028,11 @@ button:active:not(:disabled) {
     padding: 3px;
   }
   .scenario-copy strong {
-    font-size: 11px;
+    font-size: var(--text-label);
   }
   .scenario-copy > i {
     gap: 3px;
-    font-size: 8px;
+    font-size: 10px;
   }
   .experiment-view {
     padding: 23px 16px 30px;
@@ -2048,12 +2053,12 @@ button:active:not(:disabled) {
     height: 38px;
   }
   .heading-row h1 {
-    font-size: 27px;
-    letter-spacing: -0.8px;
+    font-size: 26px;
+    letter-spacing: -0.45px;
   }
   .difficulty-badge {
     margin-left: 8px;
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .case-facts {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2064,7 +2069,7 @@ button:active:not(:disabled) {
   }
   .case-facts dt {
     gap: 4px;
-    font-size: 9px;
+    font-size: 10px;
   }
   .case-facts dt .icon {
     width: 11px;
@@ -2084,7 +2089,7 @@ button:active:not(:disabled) {
     margin-bottom: 16px;
   }
   .control-title h2 {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .control-title {
     gap: 8px;
@@ -2099,7 +2104,7 @@ button:active:not(:disabled) {
     right: 15px;
     gap: 5px;
     margin: 0;
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .toggle-control input {
     width: 25px;
@@ -2113,7 +2118,7 @@ button:active:not(:disabled) {
     transform: translateX(10px);
   }
   .field-control select {
-    font-size: 11px;
+    font-size: var(--text-label);
     padding-left: 8px;
   }
   .map-panel,
@@ -2128,7 +2133,7 @@ button:active:not(:disabled) {
     gap: 6px;
   }
   .map-title strong {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .time-readout {
     gap: 4px;
@@ -2137,7 +2142,7 @@ button:active:not(:disabled) {
     display: none;
   }
   .time-readout > strong {
-    font-size: 15px;
+    font-size: var(--text-heading);
   }
   .map-stage {
     padding: 12px;
@@ -2199,7 +2204,7 @@ button:active:not(:disabled) {
   .map-legend {
     gap: 8px 11px;
     padding: 12px 15px;
-    font-size: 9px;
+    font-size: 10px;
   }
   .replay-controls {
     grid-template-columns: 1fr auto;
@@ -2219,16 +2224,16 @@ button:active:not(:disabled) {
     gap: 0 18px;
   }
   .inspector-heading h3 {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .state-table > div {
     gap: 8px;
   }
   .state-table dt {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .state-table dd {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .state-block {
     grid-column: 1 / -1;
@@ -2253,7 +2258,7 @@ button:active:not(:disabled) {
     gap: 6px;
   }
   .order-status {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .comparison-state dl {
     display: block;
@@ -2262,11 +2267,11 @@ button:active:not(:disabled) {
     gap: 10px;
   }
   .section-heading h2 {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .section-subtitle {
     padding-left: 1px;
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .results-section {
     margin-top: 23px;
