@@ -21,8 +21,12 @@
   --reference-route-color: #718095;
   --rail-width: 244px;
   --sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mono: "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  --display:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Segoe UI", sans-serif;
+  --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
 }
 
 * {
@@ -33,12 +37,19 @@ html {
   color-scheme: light;
   scroll-behavior: smooth;
   background: var(--canvas);
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
 }
 body {
   margin: 0;
   color: var(--ink);
   background: var(--canvas);
   font: 14px/1.5 var(--sans);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -55,6 +66,7 @@ input {
 button {
   color: inherit;
   cursor: pointer;
+  touch-action: manipulation;
 }
 a {
   color: inherit;
@@ -79,6 +91,9 @@ input:focus-visible {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+button:active:not(:disabled) {
+  filter: brightness(0.97);
 }
 .icon {
   display: inline-block;
@@ -212,6 +227,12 @@ button:disabled {
   background: #142c2b;
   scrollbar-width: thin;
   scrollbar-color: #41625b transparent;
+}
+.scenario-rail::-webkit-scrollbar,
+.scenario-list::-webkit-scrollbar,
+.results-table-wrap::-webkit-scrollbar,
+.map-stage::-webkit-scrollbar {
+  display: none;
 }
 .rail-heading {
   display: flex;
@@ -364,9 +385,47 @@ button:disabled {
   margin: 0;
   color: var(--ink-strong);
   font-size: clamp(26px, 2.6vw, 34px);
-  font-weight: 650;
+  font-family: var(--display);
+  font-weight: 680;
   line-height: 1.25;
   letter-spacing: -1.2px;
+}
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: #edf2ef;
+}
+.view-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 96px;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+}
+.view-switcher button:hover:not(.is-active) {
+  color: var(--ink-strong);
+  background: #ffffff80;
+}
+.view-switcher button.is-active {
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 1px 4px #213e2317;
+}
+.view-switcher .icon {
+  width: 14px;
+  height: 14px;
 }
 .difficulty-badge {
   display: inline-block;
@@ -513,6 +572,10 @@ button:disabled {
 }
 .field-control select:hover {
   border-color: #91b5a7;
+}
+.field-control select:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #168f7914;
 }
 .toggle-control {
   display: inline-flex;
@@ -984,6 +1047,11 @@ button:disabled {
   border-radius: 50%;
   background: var(--agent-color);
   box-shadow: 0 0 0 1px var(--agent-color);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.timeline-control > input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--agent-color) 16%, transparent);
 }
 .timeline-control > input[type="range"]::-moz-range-thumb {
   width: 9px;
@@ -1519,6 +1587,220 @@ button:disabled {
   }
 }
 
+/* Desktop viewport: a single-screen workspace with no page scrollbar. */
+@media (min-width: 1101px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+  .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app-header {
+    height: 68px;
+  }
+  .brand {
+    padding-inline: 22px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+  .header-meta {
+    padding-inline: 26px;
+  }
+  .workspace {
+    height: calc(100dvh - 68px);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .scenario-rail {
+    top: 68px;
+    height: calc(100dvh - 68px);
+    padding-block: 22px;
+    scrollbar-width: none;
+  }
+  .scenario-rail::-webkit-scrollbar,
+  .inspector-panel::-webkit-scrollbar,
+  .results-table-wrap::-webkit-scrollbar {
+    display: none;
+  }
+  .rail-heading {
+    padding-bottom: 16px;
+  }
+  .scenario-list {
+    gap: 8px;
+  }
+  .scenario-option {
+    min-height: 98px;
+    padding-block: 13px;
+  }
+  .experiment-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 17px 26px 18px;
+    overflow: hidden;
+  }
+  .experiment-heading {
+    flex: 0 0 auto;
+    padding-bottom: 14px;
+  }
+  .heading-row {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) auto auto;
+    gap: 22px;
+  }
+  .eyebrow {
+    margin-bottom: 5px;
+  }
+  .heading-row h1 {
+    font-size: clamp(23px, 2vw, 30px);
+  }
+  .case-facts > div {
+    padding-inline: 15px;
+  }
+  .case-facts dd {
+    margin-top: 4px;
+    font-size: 17px;
+  }
+  .replay-section {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .control-bar {
+    flex: 0 0 auto;
+    min-height: 58px;
+    padding: 9px 14px;
+    margin-bottom: 12px;
+  }
+  .section-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .field-control {
+    gap: 3px;
+  }
+  .field-control select {
+    height: 33px;
+  }
+  .toggle-control {
+    margin-top: 16px;
+  }
+  .analysis-grid {
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .map-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .panel-heading {
+    flex: 0 0 auto;
+    min-height: 48px;
+    padding: 10px 17px;
+  }
+  .map-stage {
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
+    min-height: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .warehouse-map {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
+  }
+  .map-legend {
+    flex: 0 0 auto;
+    padding: 9px 17px;
+  }
+  .replay-controls {
+    flex: 0 0 auto;
+    padding: 9px 14px 11px;
+  }
+  .inspector-panel {
+    height: 100%;
+    min-height: 0;
+    padding: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .state-block,
+  .battery-block,
+  .order-block,
+  .comparison-state {
+    margin-top: 13px;
+    padding-top: 12px;
+  }
+  .state-table {
+    margin-top: 5px;
+  }
+  .state-table > div,
+  .comparison-state dl > div {
+    padding-block: 5px;
+  }
+  .order-counts {
+    margin-top: 9px;
+  }
+  .order-counts > div {
+    padding-block: 7px;
+  }
+  .order-list {
+    margin-top: 8px;
+  }
+  .order-row {
+    min-height: 27px;
+  }
+  .comparison-state dl {
+    margin-top: 5px;
+  }
+  .results-section {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 0;
+  }
+  .results-section .section-heading {
+    flex: 0 0 auto;
+    margin: 2px 0 12px;
+  }
+  .results-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: none;
+  }
+  .results-table {
+    height: 100%;
+  }
+  .results-table th,
+  .results-table td {
+    height: clamp(50px, 8vh, 64px);
+  }
+  .results-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 40px;
+  }
+}
+
 /* Tablet and mobile */
 @media (min-width: 1700px) {
   .analysis-grid {
@@ -1607,8 +1889,7 @@ button:disabled {
     padding-bottom: 2px;
     overflow-x: auto;
     scroll-snap-type: x proximity;
-    scrollbar-width: thin;
-    scrollbar-color: #41625b transparent;
+    scrollbar-width: none;
   }
   .scenario-option {
     flex: 1 0 208px;
@@ -1638,6 +1919,9 @@ button:disabled {
   }
   .heading-row {
     align-items: flex-start;
+  }
+  .view-switcher {
+    margin-left: auto;
   }
   .case-facts {
     width: 100%;
@@ -1756,6 +2040,15 @@ button:disabled {
   }
   .heading-row {
     gap: 18px;
+  }
+  .view-switcher {
+    width: 100%;
+    margin: 0;
+  }
+  .view-switcher button {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
   }
   .heading-row h1 {
     font-size: 27px;

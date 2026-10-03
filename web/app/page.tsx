@@ -76,6 +76,7 @@ type DemoBundle = {
 };
 type RoutePhase = "primary" | "recorded" | "reference";
 type OrderState = "queued" | "ready" | "carried" | "delivered" | "expired";
+type WorkspaceView = "replay" | "outcomes";
 
 const actionLabels: Record<string, string> = {
   up: "Move north",
@@ -280,6 +281,7 @@ export default function Home() {
   const [playbackRate, setPlaybackRate] =
     useState<(typeof playbackRates)[number]>(1);
   const [showRecordedRemainder, setShowRecordedRemainder] = useState(false);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("replay");
 
   useEffect(() => {
     fetch("./demo-data.json")
@@ -353,6 +355,34 @@ export default function Home() {
     );
     return () => window.clearInterval(timer);
   }, [playing, maximumTime, playbackRate]);
+
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        workspaceView !== "replay" ||
+        target?.matches("input, select, button, a, textarea")
+      ) {
+        return;
+      }
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (event.repeat) return;
+        if (time >= maximumTime) setTime(1);
+        setPlaying((value) => !value);
+      }
+      if (event.key === "ArrowLeft") {
+        setPlaying(false);
+        setTime((current) => Math.max(1, current - 1));
+      }
+      if (event.key === "ArrowRight") {
+        setPlaying(false);
+        setTime((current) => Math.min(maximumTime, current + 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [maximumTime, time, workspaceView]);
 
   const selectCase = (nextCaseId: string) => {
     if (!bundle) return;
@@ -630,6 +660,29 @@ export default function Home() {
                   {selectedCase.display?.difficulty ?? "Recorded case"}
                 </span>
               </div>
+              <nav className="view-switcher" aria-label="Workspace view">
+                <button
+                  className={workspaceView === "replay" ? "is-active" : ""}
+                  onClick={() => setWorkspaceView("replay")}
+                  aria-pressed={workspaceView === "replay"}
+                  aria-controls="replay-workspace"
+                >
+                  <Icon name="play" />
+                  Replay
+                </button>
+                <button
+                  className={workspaceView === "outcomes" ? "is-active" : ""}
+                  onClick={() => {
+                    setPlaying(false);
+                    setWorkspaceView("outcomes");
+                  }}
+                  aria-pressed={workspaceView === "outcomes"}
+                  aria-controls="outcomes-workspace"
+                >
+                  <Icon name="chart" />
+                  Outcomes
+                </button>
+              </nav>
               <dl className="case-facts">
                 <div>
                   <dt>
@@ -668,7 +721,12 @@ export default function Home() {
             </div>
           </header>
 
-          <section className="replay-section" aria-labelledby="replay-title">
+          {workspaceView === "replay" ? (
+          <section
+            className="replay-section"
+            id="replay-workspace"
+            aria-labelledby="replay-title"
+          >
             <div className="control-bar">
               <div className="control-title">
                 <span className="section-icon">
@@ -678,6 +736,7 @@ export default function Home() {
                   <h2 id="replay-title">Simulation replay</h2>
                   <span
                     className={`playback-status ${playing ? "is-playing" : ""}`}
+                    aria-live="polite"
                   >
                     <i />
                     {playing
@@ -894,6 +953,7 @@ export default function Home() {
                       onClick={() => seek(time - 1)}
                       disabled={time <= 1}
                       aria-label="Previous time step"
+                      aria-keyshortcuts="ArrowLeft"
                     >
                       <Icon name="back" />
                     </button>
@@ -910,6 +970,7 @@ export default function Home() {
                             ? "Replay from start"
                             : "Play replay"
                       }
+                      aria-keyshortcuts="Space"
                     >
                       <Icon name={playing ? "pause" : "play"} />
                       {playing
@@ -922,6 +983,7 @@ export default function Home() {
                       onClick={() => seek(time + 1)}
                       disabled={time >= maximumTime}
                       aria-label="Next time step"
+                      aria-keyshortcuts="ArrowRight"
                     >
                       <Icon name="next" />
                     </button>
@@ -1171,8 +1233,14 @@ export default function Home() {
               </aside>
             </div>
           </section>
+          ) : null}
 
-          <section className="results-section" aria-labelledby="results-title">
+          {workspaceView === "outcomes" ? (
+          <section
+            className="results-section"
+            id="outcomes-workspace"
+            aria-labelledby="results-title"
+          >
             <header className="section-heading">
               <div>
                 <span className="section-icon">
@@ -1269,6 +1337,7 @@ export default function Home() {
               </table>
             </div>
           </section>
+          ) : null}
         </article>
       </div>
     </main>
