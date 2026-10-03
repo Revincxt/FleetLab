@@ -97,12 +97,12 @@ const eventLabels: Record<Event["kind"], string> = {
 
 const playbackRates = [0.5, 1, 2] as const;
 const routeDisplayColors: Record<string, string> = {
-  planning: "#718095",
-  replanning: "#407dc7",
-  "q-learning": "#b58527",
-  "dyna-q": "#936cc6",
-  dqn: "#cb7651",
-  hybrid: "#168f79",
+  planning: "#7c8493",
+  replanning: "#5856b8",
+  "q-learning": "#a87725",
+  "dyna-q": "#a4619c",
+  dqn: "#bc7153",
+  hybrid: "#007aff",
 };
 const cellKey = (point: Point) => `${point.x}:${point.y}`;
 
@@ -120,7 +120,7 @@ const iconPaths = {
   restart: "M3 10a9 9 0 1 1 1 7M3 4v6h6",
   bolt: "m13 2-9 12h7l-1 8 10-13h-7l1-7Z",
   check: "m5 12 4 4L19 6",
-  arrow: "M7 17 17 7M7 7h10v10",
+  arrow: "m9 5 7 7-7 7",
   chart: "M4 3v17h17M8 15v-4M13 15V6M18 15V9",
   robot:
     "M8 7h8a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3ZM12 3v4M2 11v5M22 11v5M9 12v1M15 12v1M9 17h6",
@@ -508,11 +508,11 @@ export default function Home() {
   ];
   const referenceTravelled = reference
     ? [
-        scenario.initialRobot,
-        ...reference.trace
-          .filter((step) => step.time <= time)
-          .map(pointFromTrace),
-      ]
+      scenario.initialRobot,
+      ...reference.trace
+        .filter((step) => step.time <= time)
+        .map(pointFromTrace),
+    ]
     : [];
   const deliveredOrderIds = new Set(
     agent.trace
@@ -568,9 +568,9 @@ export default function Home() {
     ? { label: "Trace complete", tone: "complete" }
     : currentStep.violations.length
       ? {
-          label: `${currentStep.violations.length} constraint flag(s)`,
-          tone: "alert",
-        }
+        label: `${currentStep.violations.length} constraint flag(s)`,
+        tone: "alert",
+      }
       : batteryPercent <= 20
         ? { label: "Low battery", tone: "warning" }
         : { label: "State valid", tone: "ok" };
@@ -580,802 +580,783 @@ export default function Home() {
 
   return (
     <main className="app-shell" style={activeStyle}>
-      <header className="app-header">
-        <a
-          className="brand"
-          href="#workspace"
-          aria-label="Adaptive Agent Lab home"
-        >
-          <span className="brand-mark">
-            <Icon name="layers" />
-          </span>
-          <span className="brand-name">
-            Adaptive<span>Agent Lab</span>
-          </span>
-        </a>
-        <div className="header-meta">
-          <span className="header-context">
-            Replay explorer
-          </span>
-          <div className="header-actions">
-            <span className="recording-label" title="Recorded demonstration, not a held-out benchmark">
-              <Icon name="clock" />
-              Recorded demo
+      <div className="app-window">
+        <header className="app-header">
+          <a
+            className="brand"
+            href="#workspace"
+            aria-label="Adaptive Agent Lab home"
+          >
+            <span className="brand-mark">
+              <Icon name="layers" />
             </span>
-            <a href="https://github.com/Revincxt/adaptive-agent">
-              <Icon name="code" />
-              <span>GitHub</span>
-              <Icon name="arrow" />
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="workspace" id="workspace">
-        <aside
-          className="scenario-rail"
-          aria-labelledby="scenario-library-title"
-        >
-          <header className="rail-heading">
-            <div>
-              <h2 id="scenario-library-title">Scenario library</h2>
-            </div>
-            <span>{String(bundle.cases.length).padStart(2, "0")}</span>
-          </header>
-
-          <div className="scenario-list">
-            {bundle.cases.map((candidate) => {
-              const isSelected = candidate.caseId === selectedCase.caseId;
-              return (
-                <button
-                  className={`scenario-option ${isSelected ? "is-selected" : ""}`}
-                  onClick={() => selectCase(candidate.caseId)}
-                  aria-pressed={isSelected}
-                  key={candidate.caseId}
-                >
-                  <MapThumbnail demoCase={candidate} />
-                  <span className="scenario-copy">
-                    <strong>{candidate.label}</strong>
-                  </span>
-                  {isSelected ? (
-                    <span className="case-selected">
-                      <Icon name="check" />
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-          <div className="rail-footer">
-            <span title="Play or pause"><kbd>Space</kbd> Play</span>
-            <span title="Previous or next step"><kbd>←</kbd><kbd>→</kbd> Step</span>
-          </div>
-        </aside>
-
-        <article className="experiment-view">
-          <header className="experiment-heading">
-            <div className="heading-row">
-              <div>
-                <h1>{selectedCase.label}</h1>
-                <span className="difficulty-badge">
-                  {selectedCase.display?.difficulty ?? "Recorded case"}
-                </span>
-              </div>
-              <nav className="view-switcher" aria-label="Workspace view">
-                <button
-                  className={workspaceView === "replay" ? "is-active" : ""}
-                  onClick={() => setWorkspaceView("replay")}
-                  aria-pressed={workspaceView === "replay"}
-                >
-                  <Icon name="play" />
-                  Replay
-                </button>
-                <button
-                  className={workspaceView === "outcomes" ? "is-active" : ""}
-                  onClick={() => {
-                    setPlaying(false);
-                    setWorkspaceView("outcomes");
-                  }}
-                  aria-pressed={workspaceView === "outcomes"}
-                >
-                  <Icon name="chart" />
-                  Outcomes
-                </button>
-              </nav>
-              <dl className="case-facts">
-                <div>
-                  <dt>
-                    <Icon name="grid" />
-                    Grid
-                  </dt>
-                  <dd>
-                    {scenario.width} <span>×</span> {scenario.height}
-                  </dd>
-                </div>
-                <div>
-                  <dt>
-                    <Icon name="box" />
-                    Orders
-                  </dt>
-                  <dd>{String(scenario.orders.length).padStart(2, "0")}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <Icon name="route" />
-                    Closures
-                  </dt>
-                  <dd>{String(closureCount).padStart(2, "0")}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <Icon name="clock" />
-                    Horizon
-                  </dt>
-                  <dd>
-                    {scenario.horizon}
-                    <small>steps</small>
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </header>
-
-          {workspaceView === "replay" ? (
-          <section
-            className="replay-section"
-            id="replay-workspace"
-            aria-labelledby="replay-title"
-          >
-            <div className="control-bar">
-              <div className="control-title">
-                <span className="section-icon">
-                  <Icon name="route" />
-                </span>
-                <div>
-                  <h2 id="replay-title">Replay</h2>
-                  <span
-                    className={`playback-status ${playing ? "is-playing" : ""}`}
-                    aria-live="polite"
-                  >
-                    <i />
-                    {playing
-                      ? "Playing"
-                      : primaryAtTerminal
-                        ? "Complete"
-                        : "Paused"}
-                  </span>
-                </div>
-              </div>
-              <label className="field-control">
-                <span><b className="controller-letter">A</b> Primary controller</span>
-                <select
-                  value={agent.id}
-                  onChange={(event) => selectAgent(event.target.value)}
-                >
-                  {selectedCase.agents.map((candidate) => (
-                    <option value={candidate.id} key={candidate.id}>
-                      {candidate.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-control">
-                <span><b className="controller-letter is-reference">B</b> Compare with</span>
-                <select
-                  value={reference?.id ?? ""}
-                  onChange={(event) => selectReference(event.target.value)}
-                >
-                  <option value="">Add a comparison</option>
-                  {selectedCase.agents
-                    .filter((candidate) => candidate.id !== agent.id)
-                    .map((candidate) => (
-                      <option value={candidate.id} key={candidate.id}>
-                        {candidate.label}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className="toggle-control">
-                <input
-                  type="checkbox"
-                  checked={showRecordedRemainder}
-                  onChange={(event) =>
-                    setShowRecordedRemainder(event.target.checked)
-                  }
-                />
-                <span>Future path</span>
-              </label>
-            </div>
-
-            <div className="analysis-grid">
-              <figure className="map-panel">
-                <header className="panel-heading">
-                  <div className="map-title">
-                    <Icon name="grid" />
-                    <strong>
-                      {selectedCase.display?.topology ?? "Warehouse floor"}
-                    </strong>
-                  </div>
-                  <div className="time-readout">
-                    <span>step</span>
-                    <strong>{String(time).padStart(3, "0")}</strong>
-                    <i>/ {maximumTime}</i>
-                  </div>
-                </header>
-
-                <div className="map-stage">
-                  <div
-                    className="warehouse-map"
-                    style={{
-                      "--map-ratio": scenario.width / scenario.height,
-                    } as CSSProperties}
-                    role="img"
-                    aria-label={`${selectedCase.label}, ${scenario.width} by ${scenario.height} warehouse map at time ${time}. Primary robot at column ${robotPosition.x}, row ${robotPosition.y}. ${blocked.size} aisle closures active. ${deliveredOrderCount} orders delivered, ${carriedOrderCount} carried, ${readyOrderCount} ready, and ${queuedOrderCount} queued.`}
-                  >
-                    <div
-                      className="map-grid"
-                      style={{
-                        gridTemplateColumns: `repeat(${scenario.width}, 1fr)`,
-                        gridTemplateRows: `repeat(${scenario.height}, 1fr)`,
-                      }}
-                      aria-hidden="true"
-                    >
-                      {Array.from({
-                        length: scenario.width * scenario.height,
-                      }).map((_, index) => {
-                        const point = {
-                          x: index % scenario.width,
-                          y: Math.floor(index / scenario.width),
-                        };
-                        const key = cellKey(point);
-                        const pickups = scenario.orders.filter(
-                          (order) => cellKey(order.pickup) === key,
-                        );
-                        const dropoffs = scenario.orders.filter(
-                          (order) => cellKey(order.dropoff) === key,
-                        );
-                        const isPrimaryRobot = cellKey(robotPosition) === key;
-                        const isReferenceRobot =
-                          referencePosition &&
-                          cellKey(referencePosition) === key;
-
-                        return (
-                          <span
-                            className={`map-cell ${obstacleSet.has(key) ? "obstacle" : ""} ${blocked.has(key) ? "blocked" : ""}`}
-                            key={key}
-                          >
-                            {chargerSet.has(key) ? (
-                              <span className="charger-marker">
-                                <Icon name="bolt" />
-                              </span>
-                            ) : null}
-                            {pickups.map((order) => (
-                              <span
-                                className={`order-marker pickup-marker is-${orderState(order)}`}
-                                key={`pickup-${order.id}`}
-                              >
-                                P{scenario.orders.indexOf(order) + 1}
-                              </span>
-                            ))}
-                            {dropoffs.map((order) => (
-                              <span
-                                className={`order-marker dropoff-marker is-${orderState(order)}`}
-                                key={`dropoff-${order.id}`}
-                              >
-                                D{scenario.orders.indexOf(order) + 1}
-                              </span>
-                            ))}
-                            {blocked.has(key) ? (
-                              <span className="closure-marker">×</span>
-                            ) : null}
-                            {isReferenceRobot ? (
-                              <span
-                                className={`robot-marker reference-robot ${isPrimaryRobot ? "is-overlap" : ""} ${referenceAtTerminal ? "is-trace-complete" : ""}`}
-                              >
-                                B
-                              </span>
-                            ) : null}
-                            {isPrimaryRobot ? (
-                              <span
-                                className={`robot-marker primary-robot ${isReferenceRobot ? "is-overlap" : ""} ${primaryAtTerminal ? "is-trace-complete" : ""}`}
-                              >
-                                A
-                              </span>
-                            ) : null}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {showRecordedRemainder && primaryRemainder.length > 1 ? (
-                      <RouteLayer
-                        points={primaryRemainder}
-                        width={scenario.width}
-                        height={scenario.height}
-                        phase="recorded"
-                      />
-                    ) : null}
-                    {referenceTravelled.length > 1 ? (
-                      <RouteLayer
-                        points={referenceTravelled}
-                        width={scenario.width}
-                        height={scenario.height}
-                        phase="reference"
-                      />
-                    ) : null}
-                    <RouteLayer
-                      points={primaryTravelled}
-                      width={scenario.width}
-                      height={scenario.height}
-                      phase="primary"
-                    />
-                  </div>
-                </div>
-
-                <div className="map-legend" aria-label="Map legend">
-                  <span>
-                    <i className="legend-primary" />A · {agent.label}
-                  </span>
-                  {reference ? (
-                    <span>
-                      <i className="legend-reference" />B · {reference.label}
-                    </span>
-                  ) : null}
-                  {showRecordedRemainder ? (
-                    <span>
-                      <i className="legend-recorded" />
-                      future A · next ≤20
-                    </span>
-                  ) : null}
-                  <span>
-                    <i className="legend-order legend-pickup" />P · pickup
-                  </span>
-                  <span>
-                    <i className="legend-order legend-dropoff" />D · drop-off
-                  </span>
-                  <span>
-                    <i className="legend-charger" />
-                    Charger
-                  </span>
-                  <span>
-                    <i className="legend-closure" />
-                    Closure
-                  </span>
-                </div>
-
-                <div className="replay-controls">
-                  <div
-                    className="transport-controls"
-                    role="group"
-                    aria-label="Replay transport"
-                  >
-                    <button
-                      onClick={() => seek(1)}
-                      disabled={time <= 1 && !playing}
-                      aria-label="Restart replay"
-                      title="Restart replay"
-                    >
-                      <Icon name="restart" />
-                    </button>
-                    <button
-                      onClick={() => seek(time - 1)}
-                      disabled={time <= 1}
-                      aria-label="Previous time step"
-                      aria-keyshortcuts="ArrowLeft"
-                    >
-                      <Icon name="back" />
-                    </button>
-                    <button
-                      className="play-button"
-                      onClick={() => {
-                        if (time >= maximumTime) setTime(1);
-                        setPlaying((value) => !value);
-                      }}
-                      aria-label={
-                        playing
-                          ? "Pause replay"
-                          : time >= maximumTime
-                            ? "Replay from start"
-                            : "Play replay"
-                      }
-                      aria-keyshortcuts="Space"
-                    >
-                      <Icon name={playing ? "pause" : "play"} />
-                      {playing
-                        ? "Pause"
-                        : time >= maximumTime
-                          ? "Replay"
-                          : "Play"}
-                    </button>
-                    <button
-                      onClick={() => seek(time + 1)}
-                      disabled={time >= maximumTime}
-                      aria-label="Next time step"
-                      aria-keyshortcuts="ArrowRight"
-                    >
-                      <Icon name="next" />
-                    </button>
-                  </div>
-
-                  <div className="timeline-control">
-                    <input
-                      aria-label={`Replay time, ${time} of ${maximumTime}`}
-                      aria-valuetext={`t = ${time} of ${maximumTime}`}
-                      type="range"
-                      min="1"
-                      max={maximumTime}
-                      value={time}
-                      style={
-                        {
-                          "--timeline-progress": `${completedPercent}%`,
-                        } as CSSProperties
-                      }
-                      onChange={(event) => seek(Number(event.target.value))}
-                    />
-                    <div
-                      className="timeline-events"
-                      role="group"
-                      aria-label="Scenario event shortcuts"
-                    >
-                      {scenario.events
-                        .filter((event) => event.time <= maximumTime)
-                        .map((event, index) => (
-                          <button
-                            key={`${event.kind}-${event.time}-${index}`}
-                            className={`timeline-event event-${event.kind}`}
-                            style={
-                              {
-                                left: `${((event.time - 1) / Math.max(1, maximumTime - 1)) * 100}%`,
-                                "--event-lane": index % 2,
-                              } as CSSProperties
-                            }
-                            onClick={() => seek(event.time)}
-                            aria-label={`${eventLabels[event.kind]} at time ${event.time}`}
-                            title={`${eventLabels[event.kind]} · t=${event.time}`}
-                          />
-                        ))}
-                    </div>
-                    <div className="timeline-scale">
-                      <span>t = 1</span>
-                      <span>t = {maximumTime}</span>
-                    </div>
-                  </div>
-
-                  <div
-                    className="speed-control"
-                    role="group"
-                    aria-label="Playback speed"
-                  >
-                    {playbackRates.map((rate) => (
-                      <button
-                        className={rate === playbackRate ? "is-active" : ""}
-                        onClick={() => setPlaybackRate(rate)}
-                        aria-pressed={rate === playbackRate}
-                        key={rate}
-                      >
-                        {rate}×
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <figcaption className="replay-caption">
-                  {nextEvent ? (
-                    <button onClick={() => seek(nextEvent.time)} title="Jump to the next scenario event">
-                      Next: {eventLabels[nextEvent.kind]} <span>t = {nextEvent.time}</span><Icon name="arrow" />
-                    </button>
-                  ) : <span>All events replayed</span>}
-                </figcaption>
-              </figure>
-
-              <aside
-                className="inspector-panel"
-                aria-labelledby="inspector-title"
+            <span className="brand-name">
+              Adaptive<span>Agent Lab</span>
+            </span>
+          </a>
+          <div className="header-meta">
+            <nav className="view-switcher" aria-label="Workspace view">
+              <button
+                className={workspaceView === "replay" ? "is-active" : ""}
+                onClick={() => setWorkspaceView("replay")}
+                aria-pressed={workspaceView === "replay"}
               >
-                <header className="inspector-heading">
-                  <div>
-                    <span className="agent-avatar">
-                      <Icon name="robot" />
-                    </span>
-                    <div>
-                      <h3 id="inspector-title">{agent.label}</h3>
-                    </div>
-                  </div>
-                  <span className={`state-badge is-${stateStatus.tone}`}>
-                    <i />
-                    {stateStatus.label}
-                  </span>
-                </header>
-                <nav className="inspector-tabs" aria-label="Controller details">
-                  {(["state", "orders", "compare"] as const).map((view) => (
-                    <button
-                      key={view}
-                      className={inspectorView === view ? "is-active" : ""}
-                      aria-pressed={inspectorView === view}
-                      disabled={view === "compare" && !reference}
-                      title={view === "compare" && !reference ? "Add a comparison controller first" : undefined}
-                      onClick={() => setInspectorView(view)}
-                    >
-                      {view === "state" ? "State" : view === "orders" ? "Orders" : "Compare"}
-                    </button>
-                  ))}
-                </nav>
-                <div className="inspector-content">
-
-                <section className="state-block" hidden={inspectorView !== "state"}>
-                  <h4>
-                    {primaryAtTerminal
-                      ? `Final state · trace ended at t = ${agentEndTime}`
-                      : `State at t = ${time}`}
-                  </h4>
-                  <dl className="state-table">
-                    <div>
-                      <dt>Position</dt>
-                      <dd>
-                        ({robotPosition.x}, {robotPosition.y})
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Applied action</dt>
-                      <dd>
-                        {primaryPastEnd
-                          ? "—"
-                          : (actionLabels[currentStep.action] ??
-                            currentStep.action)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Payload</dt>
-                      <dd>{currentStep.carriedOrderId ?? "None"}</dd>
-                    </div>
-                    <div>
-                      <dt>
-                        {primaryAtTerminal
-                          ? "Final return"
-                          : "Cumulative return"}
-                      </dt>
-                      <dd>{currentStep.cumulativeReward.toFixed(2)}</dd>
-                    </div>
-                  </dl>
-                </section>
-
-                <section className="battery-block" hidden={inspectorView !== "state"}>
-                  <div>
-                    <h4>
-                      <Icon name="bolt" />
-                      Battery
-                    </h4>
-                    <span>
-                      {Math.round(batteryPercent)}
-                      <small>%</small>
-                    </span>
-                  </div>
-                  <div
-                    className={`battery-track ${batteryPercent <= 20 ? "is-low" : ""}`}
-                    role="meter"
-                    aria-label="Battery level"
-                    aria-valuemin={0}
-                    aria-valuemax={scenario.batteryCapacity}
-                    aria-valuenow={currentStep.battery}
-                  >
-                    <i style={{ width: `${batteryPercent}%` }} />
-                  </div>
-                  <p className="battery-capacity">
-                    {currentStep.battery} / {scenario.batteryCapacity} units
-                  </p>
-                </section>
-
-                <section className="order-block" hidden={inspectorView !== "orders"}>
-                  <div className="order-counts">
-                    <div className="delivered-count">
-                      <strong>{deliveredOrderCount}</strong>
-                      <span>delivered</span>
-                    </div>
-                    <div>
-                      <strong>{carriedOrderCount}</strong>
-                      <span>carried</span>
-                    </div>
-                    <div>
-                      <strong>{readyOrderCount}</strong>
-                      <span>ready</span>
-                    </div>
-                    <div>
-                      <strong>{queuedOrderCount}</strong>
-                      <span>queued</span>
-                    </div>
-                  </div>
-                  <ol className="order-list">
-                    {scenario.orders.map((order, index) => {
-                      const state = orderStates[index];
-                      return (
-                        <li
-                          className={`order-row is-${state}`}
-                          aria-label={`Order ${index + 1}: ${state}`}
-                          key={order.id}
-                        >
-                          <span className="order-number">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <span className="order-detail">Order {index + 1}<small>Due at t = {order.deadline}</small></span>
-                          <span className="order-status">
-                            {state === "delivered" ? (
-                              <Icon name="check" />
-                            ) : null}
-                            {state}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </section>
-
-                {reference && referenceStep && referencePosition ? (
-                  <section className="comparison-state" hidden={inspectorView !== "compare"}>
-                    <header>
-                      <span className="reference-dot" />
-                      <div>
-                        <small>
-                          {referenceAtTerminal
-                            ? `Trace complete · t=${referenceEndTime}`
-                            : "Comparison B"}
-                        </small>
-                        <strong>{reference.label}</strong>
-                      </div>
-                    </header>
-                    <dl>
-                      <div>
-                        <dt>Position</dt>
-                        <dd>
-                          ({referencePosition.x}, {referencePosition.y})
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Action</dt>
-                        <dd>
-                          {referencePastEnd
-                            ? "—"
-                            : (actionLabels[referenceStep.action] ??
-                              referenceStep.action)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Battery</dt>
-                        <dd>{referenceStep.battery}</dd>
-                      </div>
-                      <div>
-                        <dt>
-                          Return Δ A−B
-                          <small>
-                            {primaryAtTerminal ? "final" : `t=${time}`} vs{" "}
-                            {referenceAtTerminal ? "final" : `t=${time}`}
-                          </small>
-                        </dt>
-                        <dd>
-                          {formatSigned(
-                            currentStep.cumulativeReward -
-                              referenceStep.cumulativeReward,
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                  </section>
-                ) : null}
-                </div>
-                <div className="inspector-summary">
-                  <div><span>Delivered</span><strong>{deliveredOrderCount}<small> / {scenario.orders.length}</small></strong></div>
-                  <div><span>Aisles closed</span><strong>{blocked.size}</strong></div>
-                </div>
-              </aside>
-            </div>
-          </section>
-          ) : null}
-
-          {workspaceView === "outcomes" ? (
-          <section
-            className="results-section"
-            id="outcomes-workspace"
-            aria-labelledby="results-title"
-          >
-            <header className="section-heading">
-              <div>
-                <span className="section-icon">
-                  <Icon name="chart" />
-                </span>
-                <h2 id="results-title">Controller outcomes</h2>
-              </div>
-              <span className="section-subtitle">
-                Final results <span>·</span>{" "}
-                {selectedCase.agents.length} controllers
+                <Icon name="play" />
+                Replay
+              </button>
+              <button
+                className={workspaceView === "outcomes" ? "is-active" : ""}
+                onClick={() => {
+                  setPlaying(false);
+                  setWorkspaceView("outcomes");
+                }}
+                aria-pressed={workspaceView === "outcomes"}
+              >
+                <Icon name="chart" />
+                Outcomes
+              </button>
+            </nav>
+            <div className="header-actions">
+              <span className="recording-label" title="Recorded demonstration, not a held-out benchmark">
+                <Icon name="clock" />
+                Recorded demo
               </span>
+              <a href="https://github.com/Revincxt/adaptive-agent" aria-label="View repository on GitHub" title="View on GitHub">
+                <Icon name="code" />
+              </a>
+            </div>
+          </div>
+        </header>
+
+        <div className="workspace" id="workspace">
+          <aside
+            className="scenario-rail"
+            aria-labelledby="scenario-library-title"
+          >
+            <header className="rail-heading">
+              <div>
+                <h2 id="scenario-library-title">Scenario library</h2>
+              </div>
+              <span>{String(bundle.cases.length).padStart(2, "0")}</span>
             </header>
 
-            <div className="results-table-wrap">
-              <table className="results-table">
-                <caption>Controller outcomes for {selectedCase.label}</caption>
-                <thead>
-                  <tr>
-                    <th>Controller</th>
-                    <th>On time</th>
-                    <th>Delivered</th>
-                    <th>Return</th>
-                    <th>Violations</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedCase.agents.map((candidate) => (
-                    <tr
-                      className={`${candidate.id === agent.id ? "is-primary" : ""} ${candidate.id === reference?.id ? "is-reference" : ""}`}
-                      key={candidate.id}
-                    >
-                      <th scope="row">
-                        <button
-                          className="controller-option"
-                          onClick={() => {
-                            selectAgent(candidate.id);
-                            setWorkspaceView("replay");
-                            setInspectorView("state");
-                          }}
-                          aria-label={`Replay ${candidate.label}`}
-                          aria-pressed={candidate.id === agent.id}
-                        >
-                          <i
-                            style={{
-                              backgroundColor:
-                                routeDisplayColors[candidate.id] ??
-                                candidate.color,
-                            }}
-                          />
-                          <span>
-                            <strong>{candidate.label}</strong>
-                            <small>{candidate.family}</small>
-                          </span>
-                          {candidate.id === agent.id ? (
-                            <b>A</b>
-                          ) : candidate.id === reference?.id ? (
-                            <b>B</b>
-                          ) : null}
-                        </button>
-                      </th>
-                      <td>
-                        <span className="metric-value">
-                          {formatPercent(
-                            candidate.metrics.weightedOnTimeCompletionRate,
-                          )}
-                        </span>
-                        <span className="metric-track">
-                          <i
-                            style={{
-                              width: formatPercent(
-                                candidate.metrics.weightedOnTimeCompletionRate,
-                              ),
-                              backgroundColor:
-                                routeDisplayColors[candidate.id] ??
-                                candidate.color,
-                            }}
-                          />
-                        </span>
-                      </td>
-                      <td>
-                        {candidate.metrics.completedOrders}/
-                        {candidate.metrics.totalOrders}
-                      </td>
-                      <td>{formatNumber(candidate.metrics.totalReward)}</td>
-                      <td>
-                        <span
-                          className={`violation-count ${candidate.metrics.constraintViolations === 0 ? "is-clear" : ""}`}
-                        >
-                          {candidate.metrics.constraintViolations === 0 ? (
-                            <Icon name="check" />
-                          ) : null}
-                          {candidate.metrics.constraintViolations}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="scenario-list">
+              {bundle.cases.map((candidate) => {
+                const isSelected = candidate.caseId === selectedCase.caseId;
+                return (
+                  <button
+                    className={`scenario-option ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => selectCase(candidate.caseId)}
+                    aria-pressed={isSelected}
+                    key={candidate.caseId}
+                  >
+                    <MapThumbnail demoCase={candidate} />
+                    <span className="scenario-copy">
+                      <strong>{candidate.label}</strong>
+                    </span>
+                    {isSelected ? (
+                      <span className="case-selected">
+                        <Icon name="check" />
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
-          </section>
-          ) : null}
-        </article>
+            <div className="rail-footer">
+              <span title="Play or pause"><kbd>Space</kbd> Play</span>
+              <span title="Previous or next step"><kbd>←</kbd><kbd>→</kbd> Step</span>
+            </div>
+          </aside>
+
+          <article className="experiment-view">
+            <header className="experiment-heading">
+              <div className="heading-row">
+                <div>
+                  <h1>{selectedCase.label}</h1>
+                  <span className="difficulty-badge">
+                    {selectedCase.display?.difficulty ?? "Recorded case"}
+                  </span>
+                </div>
+                <dl className="case-facts">
+                  <div>
+                    <dt>
+                      <Icon name="grid" />
+                      Grid
+                    </dt>
+                    <dd>
+                      {scenario.width} <span>×</span> {scenario.height}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Icon name="box" />
+                      Orders
+                    </dt>
+                    <dd>{String(scenario.orders.length).padStart(2, "0")}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Icon name="route" />
+                      Closures
+                    </dt>
+                    <dd>{String(closureCount).padStart(2, "0")}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Icon name="clock" />
+                      Horizon
+                    </dt>
+                    <dd>
+                      {scenario.horizon}
+                      <small>steps</small>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </header>
+
+            {workspaceView === "replay" ? (
+              <section
+                className="replay-section"
+                id="replay-workspace"
+                aria-labelledby="replay-title"
+              >
+                <h2 id="replay-title" className="sr-only">Simulation replay</h2>
+                <div className="analysis-grid">
+                  <figure className="map-panel">
+                    <div className="control-bar">
+                      <label className="field-control" title="Primary controller">
+                        <span><b className="controller-letter" aria-hidden="true">A</b><span className="sr-only">Primary controller</span></span>
+                        <select
+                          value={agent.id}
+                          onChange={(event) => selectAgent(event.target.value)}
+                        >
+                          {selectedCase.agents.map((candidate) => (
+                            <option value={candidate.id} key={candidate.id}>
+                              {candidate.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field-control" title="Comparison controller">
+                        <span><b className="controller-letter is-reference" aria-hidden="true">B</b><span className="sr-only">Compare with</span></span>
+                        <select
+                          value={reference?.id ?? ""}
+                          onChange={(event) => selectReference(event.target.value)}
+                        >
+                          <option value="">Compare with…</option>
+                          {selectedCase.agents
+                            .filter((candidate) => candidate.id !== agent.id)
+                            .map((candidate) => (
+                              <option value={candidate.id} key={candidate.id}>
+                                {candidate.label}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="toggle-control">
+                        <input
+                          type="checkbox"
+                          checked={showRecordedRemainder}
+                          onChange={(event) =>
+                            setShowRecordedRemainder(event.target.checked)
+                          }
+                        />
+                        <span>Future path</span>
+                      </label>
+                    </div>
+
+                    <div className="map-stage">
+                      <header className="panel-heading">
+                        <div className="map-title">
+                          <span
+                            className={`playback-status ${playing ? "is-playing" : ""}`}
+                            aria-live="polite"
+                          >
+                            <i />
+                            {playing ? "Playing" : primaryAtTerminal ? "Complete" : "Paused"}
+                          </span>
+                        </div>
+                        <div className="time-readout">
+                          <span>step</span>
+                          <strong>{String(time).padStart(3, "0")}</strong>
+                          <i>/ {maximumTime}</i>
+                        </div>
+                      </header>
+
+                      <div
+                        className="warehouse-map"
+                        style={{
+                          "--map-ratio": scenario.width / scenario.height,
+                        } as CSSProperties}
+                        role="img"
+                        aria-label={`${selectedCase.label}, ${scenario.width} by ${scenario.height} warehouse map at time ${time}. Primary robot at column ${robotPosition.x}, row ${robotPosition.y}. ${blocked.size} aisle closures active. ${deliveredOrderCount} orders delivered, ${carriedOrderCount} carried, ${readyOrderCount} ready, and ${queuedOrderCount} queued.`}
+                      >
+                        <div
+                          className="map-grid"
+                          style={{
+                            gridTemplateColumns: `repeat(${scenario.width}, 1fr)`,
+                            gridTemplateRows: `repeat(${scenario.height}, 1fr)`,
+                          }}
+                          aria-hidden="true"
+                        >
+                          {Array.from({
+                            length: scenario.width * scenario.height,
+                          }).map((_, index) => {
+                            const point = {
+                              x: index % scenario.width,
+                              y: Math.floor(index / scenario.width),
+                            };
+                            const key = cellKey(point);
+                            const pickups = scenario.orders.filter(
+                              (order) => cellKey(order.pickup) === key,
+                            );
+                            const dropoffs = scenario.orders.filter(
+                              (order) => cellKey(order.dropoff) === key,
+                            );
+                            const isPrimaryRobot = cellKey(robotPosition) === key;
+                            const isReferenceRobot =
+                              referencePosition &&
+                              cellKey(referencePosition) === key;
+
+                            return (
+                              <span
+                                className={`map-cell ${obstacleSet.has(key) ? "obstacle" : ""} ${blocked.has(key) ? "blocked" : ""}`}
+                                key={key}
+                              >
+                                {chargerSet.has(key) ? (
+                                  <span className="charger-marker">
+                                    <Icon name="bolt" />
+                                  </span>
+                                ) : null}
+                                {pickups.map((order) => (
+                                  <span
+                                    className={`order-marker pickup-marker is-${orderState(order)}`}
+                                    key={`pickup-${order.id}`}
+                                  >
+                                    P{scenario.orders.indexOf(order) + 1}
+                                  </span>
+                                ))}
+                                {dropoffs.map((order) => (
+                                  <span
+                                    className={`order-marker dropoff-marker is-${orderState(order)}`}
+                                    key={`dropoff-${order.id}`}
+                                  >
+                                    D{scenario.orders.indexOf(order) + 1}
+                                  </span>
+                                ))}
+                                {blocked.has(key) ? (
+                                  <span className="closure-marker">×</span>
+                                ) : null}
+                                {isReferenceRobot ? (
+                                  <span
+                                    className={`robot-marker reference-robot ${isPrimaryRobot ? "is-overlap" : ""} ${referenceAtTerminal ? "is-trace-complete" : ""}`}
+                                  >
+                                    B
+                                  </span>
+                                ) : null}
+                                {isPrimaryRobot ? (
+                                  <span
+                                    className={`robot-marker primary-robot ${isReferenceRobot ? "is-overlap" : ""} ${primaryAtTerminal ? "is-trace-complete" : ""}`}
+                                  >
+                                    A
+                                  </span>
+                                ) : null}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {showRecordedRemainder && primaryRemainder.length > 1 ? (
+                          <RouteLayer
+                            points={primaryRemainder}
+                            width={scenario.width}
+                            height={scenario.height}
+                            phase="recorded"
+                          />
+                        ) : null}
+                        {referenceTravelled.length > 1 ? (
+                          <RouteLayer
+                            points={referenceTravelled}
+                            width={scenario.width}
+                            height={scenario.height}
+                            phase="reference"
+                          />
+                        ) : null}
+                        <RouteLayer
+                          points={primaryTravelled}
+                          width={scenario.width}
+                          height={scenario.height}
+                          phase="primary"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="map-legend" aria-label="Map legend">
+                      <span>
+                        <i className="legend-primary" />A · {agent.label}
+                      </span>
+                      {reference ? (
+                        <span>
+                          <i className="legend-reference" />B · {reference.label}
+                        </span>
+                      ) : null}
+                      {showRecordedRemainder ? (
+                        <span>
+                          <i className="legend-recorded" />
+                          future A · next ≤20
+                        </span>
+                      ) : null}
+                      <span>
+                        <i className="legend-order legend-pickup" />P · pickup
+                      </span>
+                      <span>
+                        <i className="legend-order legend-dropoff" />D · drop-off
+                      </span>
+                      <span>
+                        <i className="legend-charger" />
+                        Charger
+                      </span>
+                      <span>
+                        <i className="legend-closure" />
+                        Closure
+                      </span>
+                    </div>
+
+                    <div className="replay-controls">
+                      <div
+                        className="transport-controls"
+                        role="group"
+                        aria-label="Replay transport"
+                      >
+                        <button
+                          onClick={() => seek(1)}
+                          disabled={time <= 1 && !playing}
+                          aria-label="Restart replay"
+                          title="Restart replay"
+                        >
+                          <Icon name="restart" />
+                        </button>
+                        <button
+                          onClick={() => seek(time - 1)}
+                          disabled={time <= 1}
+                          aria-label="Previous time step"
+                          title="Previous step (←)"
+                          aria-keyshortcuts="ArrowLeft"
+                        >
+                          <Icon name="back" />
+                        </button>
+                        <button
+                          className="play-button"
+                          onClick={() => {
+                            if (time >= maximumTime) setTime(1);
+                            setPlaying((value) => !value);
+                          }}
+                          aria-label={
+                            playing
+                              ? "Pause replay"
+                              : time >= maximumTime
+                                ? "Replay from start"
+                                : "Play replay"
+                          }
+                          aria-keyshortcuts="Space"
+                          title={playing ? "Pause (Space)" : "Play (Space)"}
+                        >
+                          <Icon name={playing ? "pause" : "play"} className={playing ? "pause-symbol" : "play-symbol"} />
+                          <span className="sr-only">{playing
+                            ? "Pause"
+                            : time >= maximumTime
+                              ? "Replay"
+                              : "Play"}</span>
+                        </button>
+                        <button
+                          onClick={() => seek(time + 1)}
+                          disabled={time >= maximumTime}
+                          aria-label="Next time step"
+                          title="Next step (→)"
+                          aria-keyshortcuts="ArrowRight"
+                        >
+                          <Icon name="next" />
+                        </button>
+                      </div>
+
+                      <div className="timeline-control">
+                        <input
+                          aria-label={`Replay time, ${time} of ${maximumTime}`}
+                          aria-valuetext={`t = ${time} of ${maximumTime}`}
+                          type="range"
+                          min="1"
+                          max={maximumTime}
+                          value={time}
+                          style={
+                            {
+                              "--timeline-progress": `${completedPercent}%`,
+                            } as CSSProperties
+                          }
+                          onChange={(event) => seek(Number(event.target.value))}
+                        />
+                        <div
+                          className="timeline-events"
+                          role="group"
+                          aria-label="Scenario event shortcuts"
+                        >
+                          {scenario.events
+                            .filter((event) => event.time <= maximumTime)
+                            .map((event, index) => (
+                              <button
+                                key={`${event.kind}-${event.time}-${index}`}
+                                className={`timeline-event event-${event.kind}`}
+                                style={
+                                  {
+                                    left: `${((event.time - 1) / Math.max(1, maximumTime - 1)) * 100}%`,
+                                    "--event-lane": index % 2,
+                                  } as CSSProperties
+                                }
+                                onClick={() => seek(event.time)}
+                                aria-label={`${eventLabels[event.kind]} at time ${event.time}`}
+                                title={`${eventLabels[event.kind]} · t=${event.time}`}
+                              />
+                            ))}
+                        </div>
+                      </div>
+
+                      <div
+                        className="speed-control"
+                        role="group"
+                        aria-label="Playback speed"
+                      >
+                        {playbackRates.map((rate) => (
+                          <button
+                            className={rate === playbackRate ? "is-active" : ""}
+                            onClick={() => setPlaybackRate(rate)}
+                            aria-pressed={rate === playbackRate}
+                            key={rate}
+                          >
+                            {rate}×
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <figcaption className="replay-caption">
+                      {nextEvent ? (
+                        <button onClick={() => seek(nextEvent.time)} title="Jump to the next scenario event">
+                          Next: {eventLabels[nextEvent.kind]} <span>t = {nextEvent.time}</span><Icon name="arrow" />
+                        </button>
+                      ) : <span>All events replayed</span>}
+                    </figcaption>
+                  </figure>
+
+                  <aside
+                    className="inspector-panel"
+                    aria-labelledby="inspector-title"
+                  >
+                    <header className="inspector-heading">
+                      <div>
+                        <span className="agent-avatar">
+                          <Icon name="robot" />
+                        </span>
+                        <div>
+                          <h3 id="inspector-title">{agent.label}</h3>
+                        </div>
+                      </div>
+                      <span className={`state-badge is-${stateStatus.tone}`}>
+                        <i />
+                        {stateStatus.label}
+                      </span>
+                    </header>
+                    <nav className="inspector-tabs" aria-label="Controller details">
+                      {(["state", "orders", "compare"] as const).map((view) => (
+                        <button
+                          key={view}
+                          className={inspectorView === view ? "is-active" : ""}
+                          aria-pressed={inspectorView === view}
+                          disabled={view === "compare" && !reference}
+                          title={view === "compare" && !reference ? "Add a comparison controller first" : undefined}
+                          onClick={() => setInspectorView(view)}
+                        >
+                          {view === "state" ? "State" : view === "orders" ? "Orders" : "Compare"}
+                        </button>
+                      ))}
+                    </nav>
+                    <div className="inspector-content">
+
+                      <section className="state-block" hidden={inspectorView !== "state"}>
+                        <h4>
+                          {primaryAtTerminal
+                            ? `Final state · t = ${agentEndTime}`
+                            : `At step ${time}`}
+                        </h4>
+                        <dl className="state-table">
+                          <div>
+                            <dt>Position</dt>
+                            <dd>
+                              ({robotPosition.x}, {robotPosition.y})
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Applied action</dt>
+                            <dd>
+                              {primaryPastEnd
+                                ? "—"
+                                : (actionLabels[currentStep.action] ??
+                                  currentStep.action)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Payload</dt>
+                            <dd>{currentStep.carriedOrderId ?? "None"}</dd>
+                          </div>
+                          <div>
+                            <dt>
+                              {primaryAtTerminal
+                                ? "Final return"
+                                : "Cumulative return"}
+                            </dt>
+                            <dd>{currentStep.cumulativeReward.toFixed(2)}</dd>
+                          </div>
+                        </dl>
+                      </section>
+
+                      <section className="battery-block" hidden={inspectorView !== "state"}>
+                        <div>
+                          <h4>
+                            <Icon name="bolt" />
+                            Battery
+                          </h4>
+                          <span>
+                            {Math.round(batteryPercent)}
+                            <small>%</small>
+                          </span>
+                        </div>
+                        <div
+                          className={`battery-track ${batteryPercent <= 20 ? "is-low" : ""}`}
+                          role="meter"
+                          aria-label="Battery level"
+                          aria-valuemin={0}
+                          aria-valuemax={scenario.batteryCapacity}
+                          aria-valuenow={currentStep.battery}
+                        >
+                          <i style={{ width: `${batteryPercent}%` }} />
+                        </div>
+                        <p className="battery-capacity">
+                          {currentStep.battery} / {scenario.batteryCapacity} units
+                        </p>
+                      </section>
+
+                      <section className="order-block" hidden={inspectorView !== "orders"}>
+                        <div className="order-counts">
+                          <div className="delivered-count">
+                            <strong>{deliveredOrderCount}</strong>
+                            <span>delivered</span>
+                          </div>
+                          <div>
+                            <strong>{carriedOrderCount}</strong>
+                            <span>carried</span>
+                          </div>
+                          <div>
+                            <strong>{readyOrderCount}</strong>
+                            <span>ready</span>
+                          </div>
+                          <div>
+                            <strong>{queuedOrderCount}</strong>
+                            <span>queued</span>
+                          </div>
+                        </div>
+                        <ol className="order-list">
+                          {scenario.orders.map((order, index) => {
+                            const state = orderStates[index];
+                            return (
+                              <li
+                                className={`order-row is-${state}`}
+                                aria-label={`Order ${index + 1}: ${state}`}
+                                key={order.id}
+                              >
+                                <span className="order-number">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span className="order-detail">Order {index + 1}<small>Due at t = {order.deadline}</small></span>
+                                <span className="order-status">
+                                  {state === "delivered" ? (
+                                    <Icon name="check" />
+                                  ) : null}
+                                  {state}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </section>
+
+                      {reference && referenceStep && referencePosition ? (
+                        <section className="comparison-state" hidden={inspectorView !== "compare"}>
+                          <header>
+                            <span className="reference-dot" />
+                            <div>
+                              <small>
+                                {referenceAtTerminal
+                                  ? `Trace complete · t=${referenceEndTime}`
+                                  : "Comparison B"}
+                              </small>
+                              <strong>{reference.label}</strong>
+                            </div>
+                          </header>
+                          <dl>
+                            <div>
+                              <dt>Position</dt>
+                              <dd>
+                                ({referencePosition.x}, {referencePosition.y})
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Action</dt>
+                              <dd>
+                                {referencePastEnd
+                                  ? "—"
+                                  : (actionLabels[referenceStep.action] ??
+                                    referenceStep.action)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Battery</dt>
+                              <dd>{referenceStep.battery}</dd>
+                            </div>
+                            <div>
+                              <dt>
+                                Return Δ A−B
+                                <small>
+                                  {primaryAtTerminal ? "final" : `t=${time}`} vs{" "}
+                                  {referenceAtTerminal ? "final" : `t=${time}`}
+                                </small>
+                              </dt>
+                              <dd>
+                                {formatSigned(
+                                  currentStep.cumulativeReward -
+                                  referenceStep.cumulativeReward,
+                                )}
+                              </dd>
+                            </div>
+                          </dl>
+                        </section>
+                      ) : null}
+                    </div>
+                    <div className="inspector-summary">
+                      <div><span>Delivered</span><strong>{deliveredOrderCount}<small> / {scenario.orders.length}</small></strong></div>
+                      <div><span>Aisles closed</span><strong>{blocked.size}</strong></div>
+                    </div>
+                  </aside>
+                </div>
+              </section>
+            ) : null}
+
+            {workspaceView === "outcomes" ? (
+              <section
+                className="results-section"
+                id="outcomes-workspace"
+                aria-labelledby="results-title"
+              >
+                <header className="section-heading">
+                  <div>
+                    <span className="section-icon">
+                      <Icon name="chart" />
+                    </span>
+                    <h2 id="results-title">Controller outcomes</h2>
+                  </div>
+                  <span className="section-subtitle">
+                    Final results <span>·</span>{" "}
+                    {selectedCase.agents.length} controllers
+                  </span>
+                </header>
+
+                <div className="results-table-wrap">
+                  <table className="results-table">
+                    <caption>Controller outcomes for {selectedCase.label}</caption>
+                    <thead>
+                      <tr>
+                        <th>Controller</th>
+                        <th>On time</th>
+                        <th>Delivered</th>
+                        <th>Return</th>
+                        <th>Violations</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedCase.agents.map((candidate) => (
+                        <tr
+                          className={`${candidate.id === agent.id ? "is-primary" : ""} ${candidate.id === reference?.id ? "is-reference" : ""}`}
+                          key={candidate.id}
+                        >
+                          <th scope="row">
+                            <button
+                              className="controller-option"
+                              onClick={() => {
+                                selectAgent(candidate.id);
+                                setWorkspaceView("replay");
+                                setInspectorView("state");
+                              }}
+                              aria-label={`Replay ${candidate.label}`}
+                              aria-pressed={candidate.id === agent.id}
+                            >
+                              <i
+                                style={{
+                                  backgroundColor:
+                                    routeDisplayColors[candidate.id] ??
+                                    candidate.color,
+                                }}
+                              />
+                              <span>
+                                <strong>{candidate.label}</strong>
+                                <small>{candidate.family}</small>
+                              </span>
+                              {candidate.id === agent.id ? (
+                                <b>A</b>
+                              ) : candidate.id === reference?.id ? (
+                                <b>B</b>
+                              ) : null}
+                            </button>
+                          </th>
+                          <td>
+                            <span className="metric-value">
+                              {formatPercent(
+                                candidate.metrics.weightedOnTimeCompletionRate,
+                              )}
+                            </span>
+                            <span className="metric-track">
+                              <i
+                                style={{
+                                  width: formatPercent(
+                                    candidate.metrics.weightedOnTimeCompletionRate,
+                                  ),
+                                  backgroundColor:
+                                    routeDisplayColors[candidate.id] ??
+                                    candidate.color,
+                                }}
+                              />
+                            </span>
+                          </td>
+                          <td>
+                            {candidate.metrics.completedOrders}/
+                            {candidate.metrics.totalOrders}
+                          </td>
+                          <td>{formatNumber(candidate.metrics.totalReward)}</td>
+                          <td>
+                            <span
+                              className={`violation-count ${candidate.metrics.constraintViolations === 0 ? "is-clear" : ""}`}
+                            >
+                              {candidate.metrics.constraintViolations === 0 ? (
+                                <Icon name="check" />
+                              ) : null}
+                              {candidate.metrics.constraintViolations}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
+          </article>
+        </div>
       </div>
     </main>
   );
