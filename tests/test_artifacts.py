@@ -45,6 +45,15 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(encoded["created_at"], "2026-08-05T00:00:00+00:00")
         self.assertTrue(encoded["scenario_fingerprint"].startswith("sha256:"))
 
+    def test_compact_atomic_json_omits_only_presentation_whitespace(self) -> None:
+        value = {"label": "keep spaces inside values", "rows": [{"value": 42}, None]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "compact.json"
+            write_json_atomic(path, value, indent=None)
+            self.assertEqual(path.read_text(), canonical_json(value) + "\n")
+            self.assertEqual(read_json(path), value)
+            self.assertFalse(path.with_name(".compact.json.tmp").exists())
+
     def test_default_encoder_supports_domain_values_and_paths(self) -> None:
         encoded = canonical_json(
             {

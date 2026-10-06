@@ -11,7 +11,7 @@ test("exports a self-contained GitHub Pages artifact under the repository path",
 
   assert.match(
     html,
-    /<title>Adaptive Agent Lab — Multi-map Replay Explorer<\/title>/i,
+    /<title>FleetLab — Fleet Simulation<\/title>/i,
   );
   assert.match(html, /href="\/adaptive-agent\/assets\/[^" ]+\.css"/);
   assert.match(html, /import\("\/adaptive-agent\/assets\/[^" ]+\.js"\)/);
@@ -53,18 +53,26 @@ test("exports a self-contained GitHub Pages artifact under the repository path",
   );
 
   const [sourceDemo, pagesDemo, sourceOg, pagesOg] = await Promise.all([
-    readFile(new URL("../public/demo-data.json", import.meta.url), "utf8"),
-    readFile(new URL("../dist/pages/demo-data.json", import.meta.url), "utf8"),
+    readFile(new URL("../public/fleet-demo.json", import.meta.url), "utf8"),
+    readFile(new URL("../dist/pages/fleet-demo.json", import.meta.url), "utf8"),
     readFile(new URL("../public/og.png", import.meta.url)),
     readFile(new URL("../dist/pages/og.png", import.meta.url)),
   ]);
   const exportedDemo = JSON.parse(pagesDemo);
-  assert.equal(exportedDemo.rootSeed, 42);
+  assert.equal(exportedDemo.kind, "fleet-gallery");
+  assert.equal(exportedDemo.cases.length, 4);
   assert.ok(
     exportedDemo.cases.every((demoCase) =>
-      demoCase.agents.every((agent) => agent.metrics.decisionTimeMs === null)
+      demoCase.vehicles.length === 4 && demoCase.summary.constraintViolations === 0
     ),
   );
   assert.deepEqual(exportedDemo, JSON.parse(sourceDemo));
   assert.deepEqual(pagesOg, sourceOg);
+  for (const filename of ["fleet-whca.json", "fleet-rhcr-pbs.json"]) {
+    const [source, exported] = await Promise.all([
+      readFile(new URL(`../public/${filename}`, import.meta.url)),
+      readFile(new URL(`../dist/pages/${filename}`, import.meta.url)),
+    ]);
+    assert.deepEqual(exported, source, `${filename} is shipped unchanged`);
+  }
 });

@@ -41,12 +41,20 @@ test("builds a self-contained root-path Sites artifact", async () => {
   );
 
   const [demoText, socialCard] = await Promise.all([
-    readFile(new URL("../dist/client/demo-data.json", import.meta.url), "utf8"),
+    readFile(new URL("../dist/client/fleet-demo.json", import.meta.url), "utf8"),
     readFile(new URL("../dist/client/og.png", import.meta.url)),
   ]);
   const demo = JSON.parse(demoText);
   assert.equal(demo.schemaVersion, 2);
-  assert.equal(demo.rootSeed, 42);
+  assert.equal(demo.kind, "fleet-gallery");
   assert.equal(demo.cases.length, 4);
+  assert.ok(demo.cases.every(item => item.vehicles.length === 4));
   assert.ok(socialCard.byteLength > 100_000);
+  for (const filename of ["fleet-whca.json", "fleet-rhcr-pbs.json"]) {
+    const [source, exported] = await Promise.all([
+      readFile(new URL(`../public/${filename}`, import.meta.url)),
+      readFile(new URL(`../dist/client/${filename}`, import.meta.url)),
+    ]);
+    assert.deepEqual(exported, source);
+  }
 });

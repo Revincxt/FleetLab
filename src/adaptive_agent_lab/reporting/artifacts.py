@@ -45,8 +45,8 @@ def fingerprint(value: object, *, prefix: str = "sha256") -> str:
     return f"{prefix}:{digest}"
 
 
-def write_json_atomic(path: Path, value: object, *, indent: int = 2) -> None:
-    """Write JSON without exposing a partially written artifact."""
+def write_json_atomic(path: Path, value: object, *, indent: int | None = 2) -> None:
+    """Write JSON atomically; ``indent=None`` omits presentation whitespace."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
@@ -57,6 +57,7 @@ def write_json_atomic(path: Path, value: object, *, indent: int = 2) -> None:
         allow_nan=False,
         sort_keys=True,
         indent=indent,
+        separators=(",", ":") if indent is None else None,
     )
     temporary.write_text(payload + "\n", encoding="utf-8")
     os.replace(temporary, path)

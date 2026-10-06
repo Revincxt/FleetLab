@@ -1,4 +1,4 @@
-"""Build the browser replay artifact from real environment trajectories."""
+"""Export single-agent research traces for the export-demo/export-gallery CLI."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from adaptive_agent_lab.agents.tabular import DynaQAgent, QLearningAgent
 from adaptive_agent_lab.benchmarking.runner import EpisodeResult, run_episode, train_episodes
 from adaptive_agent_lab.environment.scenario import Scenario
 from adaptive_agent_lab.reporting.artifacts import fingerprint, write_json_atomic
+from adaptive_agent_lab.reporting.scenario import scenario_payload
 
 DEFAULT_TRAINING_EPISODES: Mapping[str, int] = {
     "q-learning": 120,
@@ -162,7 +163,7 @@ def build_demo_data(
         "rootSeed": root_seed,
         "verificationStatus": DEMO_VERIFICATION_STATUS,
         "scenarioFingerprint": fingerprint(scenario.to_dict()),
-        "scenario": _scenario_payload(scenario),
+        "scenario": scenario_payload(scenario),
         "trainingEpisodes": training_counts,
         "agents": [_agent_payload(result) for result in results],
     }
@@ -323,52 +324,6 @@ def write_demo_gallery(
     payload = build_demo_gallery(config_path, root_seed=root_seed)
     write_json_atomic(path, payload)
     return payload
-
-
-def _scenario_payload(scenario: Scenario) -> dict[str, object]:
-    return {
-        "id": scenario.scenario_id,
-        "width": scenario.map.width,
-        "height": scenario.map.height,
-        "horizon": scenario.horizon,
-        "batteryCapacity": scenario.battery_capacity,
-        "initialRobot": {
-            "x": scenario.initial_robot.position.x,
-            "y": scenario.initial_robot.position.y,
-        },
-        "obstacles": [
-            {"x": position.x, "y": position.y}
-            for position in sorted(scenario.map.obstacles)
-        ],
-        "chargingStations": [
-            {"x": position.x, "y": position.y}
-            for position in sorted(scenario.map.charging_stations)
-        ],
-        "orders": [
-            {
-                "id": order.order_id,
-                "pickup": {"x": order.pickup.x, "y": order.pickup.y},
-                "dropoff": {"x": order.dropoff.x, "y": order.dropoff.y},
-                "releaseTime": order.release_time,
-                "deadline": order.deadline,
-                "priority": order.priority,
-            }
-            for order in scenario.orders
-        ],
-        "events": [
-            {
-                "time": event.time,
-                "kind": event.kind.value,
-                **(
-                    {"position": {"x": event.position.x, "y": event.position.y}}
-                    if event.position is not None
-                    else {}
-                ),
-                **({"orderId": event.order_id} if event.order_id is not None else {}),
-            }
-            for event in scenario.event_tape
-        ],
-    }
 
 
 def _agent_payload(result: EpisodeResult) -> dict[str, object]:

@@ -1,0 +1,14 @@
+{
+  "defaultCaseId": "rack-maze",
+  "taskCount": 225,
+  "taskSeed": 42,
+  "taskSpacing": 1,
+  "uniqueTaskPoints": false,
+  "horizon": 7200,
+  "cases": [
+    {"caseId": "rack-maze", "label": "Rack maze", "scenario": "../scenarios/medium/maze-warehouse.json"},
+    {"caseId": "parallel-aisles", "label": "Parallel aisles", "scenario": "../scenarios/medium/parallel-aisles.json"},
+    {"caseId": "cross-dock", "label": "Cross-dock", "scenario": "../scenarios/medium/cross-dock.json"},
+    {"caseId": "serpentine", "label": "Serpentine", "scenario": "../scenarios/medium/serpentine.json"}
+  ]
+}

@@ -17,10 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(pagesBasePath, `${origin}/`),
-    title: "Adaptive Agent Lab — Multi-map Replay Explorer",
+    title: "FleetLab — Fleet Simulation",
     description:
-      "A multi-map replay explorer for inspecting planning, reinforcement-learning, replanning, and hybrid controllers in structured warehouse scenarios.",
-    applicationName: "Adaptive Agent Lab",
+      "Four factory layouts, four coordinated forklifts, and shared warehouse tasks in an interactive 3D replay.",
+    applicationName: "FleetLab",
     keywords: [
       "reinforcement learning",
       "automated planning",
@@ -35,32 +35,32 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       url: "./",
-      siteName: "Adaptive Agent Lab",
-      title: "Adaptive Agent Lab — Multi-map Replay Explorer",
+      siteName: "FleetLab",
+      title: "FleetLab — Fleet Simulation",
       description:
-        "Inspect six controllers across four structured warehouse maps with synchronized trajectories, state, and recorded disruptions.",
+        "Explore four factory layouts with four forklifts, shared orders, battery management, and recorded disruptions.",
       images: [
         {
           url: "./og.png",
           width: 1536,
           height: 1024,
-          alt: "Four warehouse map topologies with recorded controller trajectories",
+          alt: "Four coordinated forklifts on a 3D factory floor",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Adaptive Agent Lab — Multi-map Replay Explorer",
+      title: "FleetLab — Fleet Simulation",
       description:
-        "Four structured warehouse maps, six controllers, and synchronized recorded replays.",
+        "Four factory layouts. Four coordinated forklifts. One shared floor.",
       images: ["./og.png"],
     },
   };
 }
 
 export const viewport: Viewport = {
-  colorScheme: "light",
-  themeColor: "#eff1f5",
+  colorScheme: "dark",
+  themeColor: "#0d1115",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

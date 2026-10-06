@@ -27,12 +27,13 @@ jobs:
           cache: pip
       - name: Install simulator and test dependencies
         run: python -m pip install -e '.[dev]'
-      - name: Verify gallery scenarios, provenance, and recorded traces
+      - name: Verify fleet scenarios, routing, and recorded traces
         run: >-
           pytest
           tests/test_gallery_scenarios.py
-          tests/test_demo_gallery.py
-          tests/test_demo_report.py
+          tests/test_fleet.py
+          tests/test_fleet_tasks.py
+          tests/test_fleet_routing.py
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.9.0

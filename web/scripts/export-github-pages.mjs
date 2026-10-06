@@ -80,7 +80,7 @@ const html = renderedHtml.replace(
 const publicSiteUrl = new URL(pagesBase, "https://revincxt.github.io/");
 assert.match(
   html,
-  /<title>Adaptive Agent Lab — Multi-map Replay Explorer<\/title>/i,
+  /<title>FleetLab — Fleet Simulation<\/title>/i,
 );
 assert.ok(
   html.includes(`property="og:image" content="${new URL("og.png", publicSiteUrl)}"`),
@@ -113,11 +113,11 @@ assert.doesNotMatch(
 
 const [manifestText, demoText] = await Promise.all([
   readFile(manifestUrl, "utf8"),
-  readFile(new URL("demo-data.json", clientDirectory), "utf8"),
+  readFile(new URL("fleet-demo.json", clientDirectory), "utf8"),
 ]);
 const manifest = JSON.parse(manifestText);
 const browserEntry = manifest["virtual:vinext-app-browser-entry"]?.file;
-const pageEntry = manifest["app/page.tsx"]?.file;
+const pageEntry = manifest["app/components/fleet-explorer.tsx"]?.file;
 assert.equal(typeof browserEntry, "string", "the browser entry must exist in the Vite manifest");
 assert.equal(typeof pageEntry, "string", "the dashboard entry must exist in the Vite manifest");
 
@@ -129,31 +129,30 @@ assert.ok(
   browserEntryText.includes(pagesBase),
   "the Vite preload runtime must preserve the GitHub Pages base path",
 );
-assert.ok(
-  pageEntryText.includes("./demo-data.json"),
-  "the dashboard must load demo data relative to the project Pages URL",
-);
+for (const filename of ["fleet-demo.json", "fleet-whca.json", "fleet-rhcr-pbs.json"]) {
+  assert.ok(
+    pageEntryText.includes(`./${filename}`),
+    `the dashboard must load ${filename} relative to the project Pages URL`,
+  );
+  const gallery = JSON.parse(await readFile(new URL(filename, clientDirectory), "utf8"));
+  assert.equal(gallery.kind, "fleet-gallery");
+  assert.equal(gallery.cases.length, 4);
+  assert.ok(gallery.cases.every(item => item.summary.completedOrders === 225 && item.summary.constraintViolations === 0));
+}
 
 const demo = JSON.parse(demoText);
-assert.equal(
-  demo.verificationStatus,
-  "DEMO · NON-CONFIRMATORY · PAIRED TAPE",
-  "the Pages gallery must use committed non-confirmatory artifacts",
-);
+assert.equal(demo.kind, "fleet-gallery");
 assert.ok(
   demo.schemaVersion === 2 && Array.isArray(demo.cases) && demo.cases.length === 4,
   "the Pages gallery must include all four structured cases",
 );
-assert.equal(demo.rootSeed, 42, "the Pages gallery must record its reproducibility seed");
 assert.ok(
-  demo.cases.every((demoCase) => Array.isArray(demoCase.agents) && demoCase.agents.length === 6),
-  "every Pages gallery case must include all six agent traces",
+  demo.cases.every((demoCase) => demoCase.vehicles?.length === 4 && demoCase.frames?.every(frame => frame.vehicles.length === 4)),
+  "every Pages layout must include all four shared-world forklift traces",
 );
 assert.ok(
-  demo.cases.every((demoCase) =>
-    demoCase.agents.every((agent) => agent.metrics.decisionTimeMs === null)
-  ),
-  "unmeasured decision timing must remain null rather than appear as zero",
+  demo.cases.every((demoCase) => demoCase.verificationStatus === "DEMO · NON-CONFIRMATORY · SHARED FLEET"),
+  "the fleet gallery must be labeled as a non-confirmatory demo",
 );
 
 await rm(pagesDirectory, { recursive: true, force: true });

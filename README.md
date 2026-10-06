@@ -1,63 +1,92 @@
 <div align="center">
 
-# Adaptive Agent Lab
+# FleetLab
 
-Planning, reinforcement learning, and hybrid control in a dynamic warehouse.
+Multi-AGV warehouse simulation and interactive 3D replay.
 
 [![CI](https://github.com/Revincxt/adaptive-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Revincxt/adaptive-agent/actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg)](https://www.python.org/)
+[![Node.js 22.13+](https://img.shields.io/badge/Node.js-22.13%2B-417E38.svg)](web/package.json)
 [![MIT License](https://img.shields.io/badge/License-MIT-5955CA.svg)](LICENSE)
 
-**[Live demo](https://revincxt.github.io/adaptive-agent/)** · [Quick start](#quick-start) · [Documentation](#documentation)
+**[Live demo](https://revincxt.github.io/adaptive-agent/)** · [Quick start](#quick-start)
 
 </div>
 
-[![Replay explorer showing a warehouse route, robot state, and playback controls](docs/assets/replay-explorer.png)](https://revincxt.github.io/adaptive-agent/)
+[![FleetLab showing a 3D factory, forklifts, chargers, and a shared task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/adaptive-agent/)
 
-<p align="center">4 layouts · 6 controllers · Seeded, reproducible replays</p>
+## Overview
 
-## Controllers
+FleetLab brings warehouse fleet operations into an interactive 3D workspace.
+Python simulates the fleet; the web app visualizes recorded runs.
 
-- **Planning** — Open-loop A* and event-triggered A* replanning.
-- **Learning** — Tabular Q-learning, Dyna-Q, and goal-guided NumPy DQN.
-- **Hybrid** — Learned high-level options with A* routing.
+- **Fleet operations** — Shared tasks, coordinated routes, automatic charging, and vehicle status.
+- **Factory view** — Switch layouts and inspect forklift cargo, task locations, and vehicle trails.
+- **Replay** — Follow progressive task releases with playback, timeline, and task-filter controls.
 
-One shared simulator, action space, and seeded scenarios. Scrub through events,
-compare trajectories, and inspect orders, battery, and returns in the demo.
+## Routing algorithms
 
-> **Alpha · Demo only.** Replays are not held-out benchmarks or algorithm rankings.
-> The benchmark command uses fresh agents; learner runs are untrained smoke tests.
-> See the [experiment protocol](docs/experiment-protocol.md) for evaluation limits.
+| Algorithm | Approach |
+| --- | --- |
+| Coordinated A* | Occupancy-aware A* with per-step cell and edge reservations. |
+| WHCA* | Windowed space-time planning with rotating vehicle priority. |
+| RHCR + PBS | Rolling-horizon planning with conflict-driven priority search. |
+
+All three share task allocation, charging rules, and seeded scenarios.
+The selector switches between their recorded runs.
 
 ## Quick start
+
+Requires **Node.js 22.13+**, **pnpm 11**, and a WebGL-capable browser.
+
+From the repository root:
+
+```bash
+cd web
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Open the local URL printed by the dev server. Replay data is included;
+no Python process is needed to use the viewer.
+
+<details>
+<summary>Generate new replays with Python</summary>
 
 From the repository root, with **Python 3.11+**:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
+python -m pip install -e .
 
-aal run --agent replanning \
-  --scenario scenarios/small/dynamic-demo.json --seed 42
+python -m adaptive_agent_lab.reporting.fleet \
+  --config configs/fleet-demo.json --algorithm coordinated-astar \
+  --output web/public/fleet-demo.json
+
+python -m adaptive_agent_lab.reporting.fleet \
+  --config configs/fleet-demo.json --algorithm whca \
+  --output web/public/fleet-whca.json
+
+python -m adaptive_agent_lab.reporting.fleet \
+  --config configs/fleet-demo.json --algorithm rhcr-pbs \
+  --output web/public/fleet-rhcr-pbs.json
 ```
 
-Use `aal --help` for training, scenario generation, and benchmarks.
+Set task count, random seed, and simulation horizon in
+[`configs/fleet-demo.json`](configs/fleet-demo.json).
+Regenerate all three files with the same configuration to keep the runs comparable.
 
-For the replay UI, with **Node.js 22.13+** and **pnpm**:
+</details>
+
+## Development
+
+From `web/`:
 
 ```bash
-cd web
-pnpm install
-pnpm dev
+pnpm lint
+pnpm test:scene
+pnpm test:pages
 ```
 
-## Documentation
-
-[Problem formulation](docs/problem-formulation.md) ·
-[Architecture](docs/architecture.md) ·
-[Experiment protocol](docs/experiment-protocol.md) ·
-[Demo development](web/README.md) ·
-[Contributing](CONTRIBUTING.md)
-
-Single-robot, fully observable simulation. Licensed under [MIT](LICENSE).
+The checks cover scene behavior, recorded fleet data, and the static GitHub Pages build.
+`pnpm build:pages` creates `web/dist/pages/` without publishing it.

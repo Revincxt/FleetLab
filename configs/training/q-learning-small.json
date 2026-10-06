@@ -50,10 +50,8 @@
     "pickup_reward": 0.25,
     "delivery_reward_per_priority": 10.0,
     "on_time_bonus_per_priority": 5.0,
-    "lateness_cost_per_step": -0.2,
-    "stranded_cost": -10.0
+    "lateness_cost_per_step": -0.2
   },
-  "reward_note": "stranded_cost is declared by RewardScheme but is not applied by WarehouseEnvironment v0.1.",
   "artifacts": {
     "suggested_output": "models/q-learning-small-reference.json",
     "state_format": "JSON-compatible QLearningAgent.state_dict"

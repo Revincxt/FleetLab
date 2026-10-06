@@ -8,7 +8,7 @@
     "implementation": "DQNAgent",
     "observation_encoder": {
       "id": "flat_grid_orders_v1",
-      "vector_size_formula": "4 * width * height + 3 + 12 * max_orders",
+      "vector_size_formula": "4 * width * height + 6 + 12 * max_orders",
       "grid_channels": [
         "permanent_obstacles",
         "charging_stations",
@@ -18,7 +18,10 @@
       "global_features": [
         "normalized_time",
         "normalized_battery",
-        "carrying_flag"
+        "carrying_flag",
+        "normalized_target_offset_x",
+        "normalized_target_offset_y",
+        "target_present_flag"
       ],
       "per_order_features": [
         "normalized_pickup_x",
@@ -90,10 +93,8 @@
     "pickup_reward": 0.25,
     "delivery_reward_per_priority": 10.0,
     "on_time_bonus_per_priority": 5.0,
-    "lateness_cost_per_step": -0.2,
-    "stranded_cost": -10.0
+    "lateness_cost_per_step": -0.2
   },
-  "reward_note": "stranded_cost is declared by RewardScheme but is not applied by WarehouseEnvironment v0.1.",
   "artifacts": {
     "suggested_output": "models/dqn-small-reference.json",
     "state_format": "JSON-compatible DQNAgent.state_dict with online and target network parameters",

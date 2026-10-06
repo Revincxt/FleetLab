@@ -21,7 +21,6 @@ class RewardScheme:
     delivery_reward_per_priority: float = 10.0
     on_time_bonus_per_priority: float = 5.0
     lateness_cost_per_step: float = -0.20
-    stranded_cost: float = -10.0
 
     def as_dict(self) -> Mapping[str, float]:
         return asdict(self)

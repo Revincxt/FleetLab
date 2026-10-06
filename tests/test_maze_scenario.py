@@ -35,25 +35,24 @@ def test_maze_warehouse_fixture_is_canonical_and_operationally_structured() -> N
     scenario = Scenario.from_json(text)
 
     assert text == scenario.to_json(indent=2) + "\n"
-    assert (scenario.map.width, scenario.map.height) == (16, 12)
-    assert len(scenario.map.obstacles) == 54
-    assert len(scenario.map.charging_stations) == 3
+    assert (scenario.map.width, scenario.map.height) == (32, 24)
+    assert len(scenario.map.obstacles) == 260
+    assert len(scenario.map.charging_stations) == 4
 
     # Pick faces sit beside rack cells, while every delivery terminates in the
-    # south-east packing and outbound staging area.
+    # perimeter receiving and dispatch bays.
     for order in scenario.orders:
         rack_neighbors = {
             order.pickup.translated(dx, dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
         }
         assert rack_neighbors & scenario.map.obstacles
-        assert order.dropoff.x >= 13
-        assert order.dropoff.y >= 10
+        assert order.dropoff.x <= 1 or order.dropoff.x >= scenario.map.width - 3
 
     # The north-west receiving bay and south-west dispatch bay each include a
     # charger, and the robot starts at the dispatch charger.
     assert Position(1, 1) in scenario.map.charging_stations
-    assert Position(1, 10) in scenario.map.charging_stations
-    assert scenario.initial_robot.position == Position(1, 10)
+    assert Position(1, 22) in scenario.map.charging_stations
+    assert scenario.initial_robot.position == Position(1, 22)
 
 
 def test_maze_closures_are_paired_and_leave_a_real_detour() -> None:
@@ -64,12 +63,20 @@ def test_maze_closures_are_paired_and_leave_a_real_detour() -> None:
     ]
 
     assert [(event.time, event.position) for event in blocked_events] == [
-        (6, Position(3, 5)),
-        (55, Position(5, 10)),
+        (6, Position(7, 6)),
+        (70, Position(24, 13)),
+        (94, Position(15, 9)),
+        (175, Position(6, 17)),
+        (202, Position(25, 6)),
+        (305, Position(16, 19)),
     ]
     assert [(event.time, event.position) for event in unblocked_events] == [
-        (20, Position(3, 5)),
-        (70, Position(5, 10)),
+        (44, Position(7, 6)),
+        (112, Position(24, 13)),
+        (138, Position(15, 9)),
+        (218, Position(6, 17)),
+        (246, Position(25, 6)),
+        (355, Position(16, 19)),
     ]
 
     required = set(scenario.map.charging_stations)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -40,6 +42,30 @@ def observation_environment() -> WarehouseEnvironment:
 
 
 class ObservationTests(unittest.TestCase):
+    def test_neural_reference_configs_match_current_vector(self) -> None:
+        spec = ObservationSpec.from_snapshot(observation_environment().snapshot)
+        root = Path(__file__).resolve().parents[1] / "configs/training"
+        for name in ("dqn", "hybrid"):
+            with self.subTest(agent=name):
+                config = json.loads((root / f"{name}-small.json").read_text())
+                encoder = config["agent"]["observation_encoder"]
+                self.assertEqual(
+                    encoder["vector_size_formula"],
+                    "4 * width * height + 6 + 12 * max_orders",
+                )
+                self.assertEqual(
+                    encoder["global_features"],
+                    ["normalized_time", "normalized_battery", "carrying_flag",
+                     "normalized_target_offset_x", "normalized_target_offset_y",
+                     "target_present_flag"],
+                )
+                self.assertEqual(
+                    len(encoder["grid_channels"]) * spec.width * spec.height
+                    + len(encoder["global_features"])
+                    + len(encoder["per_order_features"]) * spec.max_orders,
+                    spec.vector_size,
+                )
+
     def test_vector_shape_values_and_determinism(self) -> None:
         environment = observation_environment()
         spec = ObservationSpec.from_snapshot(environment.snapshot, max_orders=2)

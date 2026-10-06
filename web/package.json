@@ -12,14 +12,16 @@
     "build:pages": "node scripts/export-github-pages.mjs",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "pnpm run test:sites",
-    "test:sites": "pnpm run build && node --test tests/rendered-html.test.mjs tests/sites-build.test.mjs",
-    "test:pages": "pnpm run build:pages && node --test tests/rendered-html.test.mjs tests/pages-export.test.mjs",
+    "test:scene": "node --experimental-strip-types --test tests/scene-model.test.mjs",
+    "test:sites": "pnpm run test:scene && pnpm run build && node --test tests/rendered-html.test.mjs tests/sites-build.test.mjs",
+    "test:pages": "pnpm run test:scene && pnpm run build:pages && node --test tests/rendered-html.test.mjs tests/pages-export.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
     "next": "16.2.6",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -27,6 +29,7 @@
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "9.39.4",
