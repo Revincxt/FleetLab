@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const pagesBase = process.env.GITHUB_PAGES_BASE_PATH ?? "/adaptive-agent/";
+const pagesBase = process.env.GITHUB_PAGES_BASE_PATH ?? "/FleetLab/";
 
 assert.match(
   pagesBase,
@@ -107,7 +107,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   html,
-  /adaptive-agent\/adaptive-agent/,
+  /FleetLab\/FleetLab/,
   "already-based public URLs must not be rebased twice",
 );
 

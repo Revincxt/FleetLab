@@ -4,15 +4,15 @@
 
 Multi-AGV warehouse simulation and interactive 3D replay.
 
-[![CI](https://github.com/Revincxt/adaptive-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Revincxt/adaptive-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/Revincxt/FleetLab/actions/workflows/ci.yml/badge.svg)](https://github.com/Revincxt/FleetLab/actions/workflows/ci.yml)
 [![Node.js 22.13+](https://img.shields.io/badge/Node.js-22.13%2B-417E38.svg)](web/package.json)
 [![MIT License](https://img.shields.io/badge/License-MIT-5955CA.svg)](LICENSE)
 
-**[Live demo](https://revincxt.github.io/adaptive-agent/)** · [Quick start](#quick-start)
+**[Live demo](https://revincxt.github.io/FleetLab/)** · [Quick start](#quick-start)
 
 </div>
 
-[![FleetLab showing a 3D factory, forklifts, chargers, and a shared task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/adaptive-agent/)
+[![FleetLab showing a 3D factory, forklifts, chargers, and a shared task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/FleetLab/)
 
 ## Overview
 

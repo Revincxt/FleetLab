@@ -192,7 +192,7 @@ export default function FleetExplorer() {
             </select>
             <Icon name="arrow" className="picker-chevron" />
           </label>
-          <a href="https://github.com/Revincxt/adaptive-agent" aria-label="View repository on GitHub" title="View project on GitHub"><Icon name="code" /></a>
+          <a href="https://github.com/Revincxt/FleetLab" aria-label="View repository on GitHub" title="View project on GitHub"><Icon name="code" /></a>
         </div>
       </header>
       {error ? <div className="algorithm-error" role="alert"><span>{error}</span><button onClick={() => chooseAlgorithm(algorithmRequest ?? algorithmId)}>Retry</button><button onClick={() => setError(null)} aria-label="Dismiss replay error">×</button></div> : null}

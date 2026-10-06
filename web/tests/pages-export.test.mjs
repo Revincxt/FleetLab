@@ -7,40 +7,41 @@ test("exports a self-contained GitHub Pages artifact under the repository path",
     new URL("../dist/pages/index.html", import.meta.url),
     "utf8",
   );
-  const pagesBase = "/adaptive-agent/";
+  const pagesBase = "/FleetLab/";
 
   assert.match(
     html,
     /<title>FleetLab — Fleet Simulation<\/title>/i,
   );
-  assert.match(html, /href="\/adaptive-agent\/assets\/[^" ]+\.css"/);
-  assert.match(html, /import\("\/adaptive-agent\/assets\/[^" ]+\.js"\)/);
+  assert.match(html, /href="\/FleetLab\/assets\/[^" ]+\.css"/);
+  assert.match(html, /import\("\/FleetLab\/assets\/[^" ]+\.js"\)/);
   assert.match(
     html,
-    /href="https:\/\/revincxt\.github\.io\/adaptive-agent\/favicon\.svg"/,
+    /href="https:\/\/revincxt\.github\.io\/FleetLab\/favicon\.svg"/,
   );
   assert.match(
     html,
-    /property="og:image" content="https:\/\/revincxt\.github\.io\/adaptive-agent\/og\.png"/,
+    /property="og:image" content="https:\/\/revincxt\.github\.io\/FleetLab\/og\.png"/,
   );
   assert.match(
     html,
-    /name="twitter:image" content="https:\/\/revincxt\.github\.io\/adaptive-agent\/og\.png"/,
+    /name="twitter:image" content="https:\/\/revincxt\.github\.io\/FleetLab\/og\.png"/,
   );
   assert.match(
     html,
-    /rel="canonical" href="https:\/\/revincxt\.github\.io\/adaptive-agent\/"/,
+    /rel="canonical" href="https:\/\/revincxt\.github\.io\/FleetLab\/"/,
   );
   assert.doesNotMatch(
     html,
     /(?:href|src|content)=["']\/(?:assets\/|favicon\.svg|og\.png)/,
   );
   assert.doesNotMatch(html, /import\(["']\/assets\//);
-  assert.doesNotMatch(html, /adaptive-agent\/adaptive-agent/);
+  assert.doesNotMatch(html, /FleetLab\/FleetLab/);
+  assert.doesNotMatch(html, /\/adaptive-agent\//);
 
   const assetUrls = new Set(
     html.match(
-      /\/adaptive-agent\/(?:assets\/[^"'\\\s<]+|favicon\.svg|og\.png)/g,
+      /\/FleetLab\/(?:assets\/[^"'\\\s<]+|favicon\.svg|og\.png)/g,
     ) ?? [],
   );
   assert.ok(assetUrls.size >= 7);
