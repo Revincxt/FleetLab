@@ -10,7 +10,8 @@ import { BrandMark } from "./brand-mark";
 import { ForkliftGlyph } from "./forklift-glyph";
 import { chargingStationState, displayedOrderState, isVehicleLoaded, parseFleetGallery, releasedOrderEntries, vehiclePoint, type FleetGallery } from "./fleet-model";
 import { batteryColors, batteryToneHints, eventLabels, fleetStatusTone, gridCellHint, orderLabels, simulationStepHint, statusColors, statusToneHints, vehicleBatteryTone, vehicleStatusHint, vehicleStatusLabel, vehicleStatusTone } from "./fleet-terminology";
-import type { MazeFrame } from "./maze-model";
+import { isOrderMarkerVisible, type MazeFrame } from "./maze-model";
+import { currentTaskRoute } from "./task-route-model";
 
 const speeds = [0.5, 1, 2] as const;
 
@@ -130,7 +131,7 @@ export default function FleetExplorer() {
   const orderStates = scenario.orders.map((order) => displayedOrderState(frame.orderStates[order.id]));
   const releasedOrders = releasedOrderEntries(scenario.orders, frame);
   const releasedCount = releasedOrders.length;
-  const visibleSelectedOrderId = releasedOrders.some(({ order }) => order.id === selectedOrderId) ? selectedOrderId : null;
+  const visibleSelectedOrderId = releasedOrders.some(({ order, index }) => order.id === selectedOrderId && isOrderMarkerVisible(orderStates[index])) ? selectedOrderId : null;
   const fleetTone = fleetStatusTone(frame.vehicles);
   const filteredOrders = releasedOrders.filter(({ index }) =>
     taskFilter === "all" || (taskFilter === "done" ? orderStates[index] === "delivered" : !["delivered", "expired"].includes(orderStates[index]))
@@ -150,7 +151,7 @@ export default function FleetExplorer() {
   const sceneFrame: MazeFrame = {
     time, animate: playing, stepDuration, fleet, highlightedOrderId: visibleSelectedOrderId,
     primary: fleet[selectedIndex],
-    primaryRoute: replay.frames.slice(0, time + 1).map((item) => vehiclePoint(item.vehicles[selectedIndex])),
+    primaryRoute: currentTaskRoute(replay, time, selectedIndex),
     blocked: frame.blocked, orderStates,
     orderColors: scenario.orders.map((order) => {
       const carrier = frame.vehicles.findIndex((vehicle) => vehicle.carriedOrderId === order.id);
@@ -199,7 +200,21 @@ export default function FleetExplorer() {
 
       <div className="control-workspace" id="workspace">
         <div className="fleet-sidebar">
-          <TaskProgress replay={replay} time={time} />
+          <section className="chargers-panel side-panel" aria-labelledby="chargers-title">
+            <header className="side-heading"><h2 id="chargers-title"><Icon name="bolt" />Chargers</h2></header>
+            <ul className="charger-list" aria-label="Charging station status">
+              {scenario.chargingStations.map((station, index) => {
+                const { vehicle: robot, status } = chargingStationState(station, frame);
+                const vehicle = vehicles.find((item) => item.id === robot?.id);
+                const label = status === "charging" ? "Charging" : status === "occupied" ? "Occupied" : "Unoccupied";
+                return <li key={index} className={"charger-card is-" + status} data-charger={index + 1} data-status={status} style={{ "--vehicle-color": vehicle?.color } as CSSProperties} aria-label={"Charger " + (index + 1) + ": " + label} title={"Grid cell (" + station.x + ", " + station.y + "). " + (status === "charging" ? "Charging action recorded at this step." : status === "occupied" ? "A vehicle is present, but is not charging at this step." : "No vehicle is present at this step; reservations are not recorded.")}>
+                  <div className="charger-card-heading"><strong><span className="charger-symbol"><Icon name="charger" /></span>{pad(index + 1)}</strong>{robot ? <span className="charger-battery" title="Vehicle battery level">{Math.round(robot.battery / scenario.batteryCapacity * 100)}<small>%</small></span> : null}</div>
+                  <span className="charger-state"><i />{label}</span>
+                  {vehicle ? <button className="charger-vehicle" onClick={() => choose(vehicle.id)} aria-label={"Inspect AGV " + vehicle.badge + " at charger " + (index + 1)}><span><i />AGV {vehicle.badge}</span><Icon name="arrow" /></button> : <span className="charger-location">Grid ({station.x}, {station.y})</span>}
+                </li>;
+              })}
+            </ul>
+          </section>
         <aside className={"fleet-panel side-panel " + (fleetCollapsed ? "is-collapsed" : "")} aria-label="Fleet status" data-state={fleetTone} style={{ "--status-color": statusColors[fleetTone] } as CSSProperties}>
           <header className="side-heading"><h2 title={"Fleet: " + statusToneHints[fleetTone]}><Icon name="robot" />Fleet</h2>
             <button className="collapse-button" onClick={() => setFleetCollapsed((value) => !value)} aria-expanded={!fleetCollapsed} aria-label={fleetCollapsed ? "Expand fleet panel" : "Collapse fleet panel"} title={fleetCollapsed ? "Expand fleet panel" : "Collapse fleet panel"}><Icon name="arrow" /></button>
@@ -230,7 +245,7 @@ export default function FleetExplorer() {
           <div className="map-stage is-3d">
             {frame.blocked.length ? <span className="closure-status" role="status" aria-label={frame.blocked.length + " blocked cells"}>{frame.blocked.length} blocked cells</span> : null}
             {visibleSelectedOrderId ? <button className="task-focus-chip" onClick={() => setSelectedOrderId(null)} aria-label="Clear task selection">Task #{pad(scenario.orders.findIndex((order) => order.id === visibleSelectedOrderId) + 1, 3)}<span>×</span></button> : null}
-            <WarehouseScene key={replay.caseId + "-" + algorithmId} scenario={scenario} frame={sceneFrame} />
+          <WarehouseScene key={replay.caseId + "-" + algorithmId} scenario={scenario} frame={sceneFrame} traffic={replay.frames} workerMoveSteps={replay.workforce?.moveSteps ?? 1} />
           </div>
           <div className="replay-controls">
             <div className="timeline-control">
@@ -252,21 +267,7 @@ export default function FleetExplorer() {
         </section>
 
         <div className="operations-panel">
-          <section className="chargers-panel side-panel" aria-labelledby="chargers-title">
-            <header className="side-heading"><h2 id="chargers-title"><Icon name="bolt" />Chargers</h2></header>
-            <ul className="charger-list" aria-label="Charging station status">
-              {scenario.chargingStations.map((station, index) => {
-                const { vehicle: robot, status } = chargingStationState(station, frame);
-                const vehicle = vehicles.find((item) => item.id === robot?.id);
-                const label = status === "charging" ? "Charging" : status === "occupied" ? "Occupied" : "Unoccupied";
-                return <li key={index} className={"charger-card is-" + status} data-charger={index + 1} data-status={status} style={{ "--vehicle-color": vehicle?.color } as CSSProperties} aria-label={"Charger " + (index + 1) + ": " + label} title={"Grid cell (" + station.x + ", " + station.y + "). " + (status === "charging" ? "Charging action recorded at this step." : status === "occupied" ? "A vehicle is present, but is not charging at this step." : "No vehicle is present at this step; reservations are not recorded.")}>
-                  <div className="charger-card-heading"><strong><span className="charger-symbol"><Icon name="charger" /></span>{pad(index + 1)}</strong>{robot ? <span className="charger-battery" title="Vehicle battery level">{Math.round(robot.battery / scenario.batteryCapacity * 100)}<small>%</small></span> : null}</div>
-                  <span className="charger-state"><i />{label}</span>
-                  {vehicle ? <button className="charger-vehicle" onClick={() => choose(vehicle.id)} aria-label={"Inspect AGV " + vehicle.badge + " at charger " + (index + 1)}><span><i />AGV {vehicle.badge}</span><Icon name="arrow" /></button> : <span className="charger-location">Grid ({station.x}, {station.y})</span>}
-                </li>;
-              })}
-            </ul>
-          </section>
+          <TaskProgress replay={replay} time={time} />
           <aside className={"tasks-panel side-panel " + (tasksCollapsed ? "is-collapsed" : "")} aria-label="Task queue">
             <header className="side-heading"><h2><Icon name="box" />Tasks <small title="Released tasks">{releasedCount}</small></h2><button className="collapse-button" onClick={() => setTasksCollapsed((value) => !value)} aria-expanded={!tasksCollapsed} aria-label={tasksCollapsed ? "Expand task panel" : "Collapse task panel"} title={tasksCollapsed ? "Expand task panel" : "Collapse task panel"}><Icon name="arrow" /></button></header>
             <div className="task-panel-content" hidden={tasksCollapsed}>
@@ -275,10 +276,35 @@ export default function FleetExplorer() {
                 {filteredOrders.map(({ order, index }) => {
                   const state = orderStates[index];
                   const owner = frame.vehicles.findIndex((vehicle) => vehicle.carriedOrderId === order.id || vehicle.assignedOrderId === order.id);
-                  return <li key={order.id} className={"task-row is-" + state}><button className={"task-card " + (selectedOrderId === order.id ? "is-selected" : "")} aria-pressed={selectedOrderId === order.id} aria-label={"Locate task " + (index + 1)} onClick={() => inspectTask(order.id)}>
-                    <span className="task-card-heading"><strong><span>#</span><span className="order-number">{pad(index + 1, 3)}</span></strong><span className={"task-status is-" + state}><i />{orderLabels[state]}</span></span>
-                    <span className="task-route"><span title="Pickup grid cell (x, y)"><i>P</i>({order.pickup.x}, {order.pickup.y})</span><span className="route-connector"><Icon name="arrow" /></span><span title="Delivery grid cell (x, y)"><i>D</i>({order.dropoff.x}, {order.dropoff.y})</span></span>
-                    <span className="task-card-meta"><span className="task-owner" style={{ "--owner-color": owner >= 0 ? vehicles[owner].color : undefined } as CSSProperties}>{owner >= 0 ? <><i aria-hidden="true" />{"AGV " + vehicles[owner].badge}</> : state === "ready" ? "Unassigned" : null}</span><span>Priority {order.priority}</span></span>
+                  const ownerLabel = owner >= 0 ? "AGV " + vehicles[owner].badge : state === "ready" ? "Unassigned" : null;
+                  return <li key={order.id} className={"task-row is-" + state}><button
+                    className={"task-card " + (selectedOrderId === order.id ? "is-selected" : "")}
+                    aria-pressed={selectedOrderId === order.id}
+                    aria-label={`${isOrderMarkerVisible(state) ? "Locate" : "Inspect"} task ${pad(index + 1, 3)}. ${orderLabels[state]}. Pickup (${order.pickup.x}, ${order.pickup.y}). Delivery (${order.dropoff.x}, ${order.dropoff.y}). Priority ${order.priority}${ownerLabel ? ". " + ownerLabel : ""}`}
+                    onClick={() => inspectTask(order.id)}
+                  >
+                    <span className="task-card-heading">
+                      <span className="task-identity">
+                        <strong><span>#</span><span className="order-number">{pad(index + 1, 3)}</span></strong>
+                        {ownerLabel ? <span className={"task-owner" + (owner < 0 ? " is-unassigned" : "")} style={{ "--owner-color": owner >= 0 ? vehicles[owner].color : undefined } as CSSProperties}>
+                          {owner >= 0 ? <i aria-hidden="true" /> : null}{ownerLabel}
+                        </span> : null}
+                      </span>
+                      <span className={"task-status is-" + state}><i aria-hidden="true" />{orderLabels[state]}</span>
+                    </span>
+                    <span className="task-card-body">
+                      <span className="task-endpoints">
+                        <span className="task-endpoint is-pickup" title="Pickup grid cell (x, y)">
+                          <i className="task-endpoint-marker" aria-hidden="true" /><span className="task-endpoint-label">Pickup</span><span className="task-coordinate">({order.pickup.x}, {order.pickup.y})</span>
+                        </span>
+                        <span className="task-endpoint is-delivery" title="Delivery grid cell (x, y)">
+                          <i className="task-endpoint-marker" aria-hidden="true" /><span className="task-endpoint-label">Delivery</span><span className="task-coordinate">({order.dropoff.x}, {order.dropoff.y})</span>
+                        </span>
+                      </span>
+                      <span className="task-priority" title={"Task priority: " + order.priority}>
+                        <span>Priority</span><strong><Icon name="priority" />{order.priority}</strong>
+                      </span>
+                    </span>
                   </button></li>;
                 })}
                 {!filteredOrders.length ? <li className="empty-tasks"><Icon name="check" /><strong>{taskFilter === "done" ? "No delivered tasks" : releasedCount < scenario.orders.length ? "Waiting for tasks" : "No open tasks"}</strong></li> : null}

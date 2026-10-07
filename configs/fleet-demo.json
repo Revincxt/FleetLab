@@ -1,6 +1,8 @@
 {
   "defaultCaseId": "rack-maze",
   "taskCount": 225,
+  "workerCount": 3,
+  "workerSeed": 17,
   "taskSeed": 42,
   "taskSpacing": 1,
   "uniqueTaskPoints": false,

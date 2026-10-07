@@ -19,11 +19,6 @@ from adaptive_agent_lab.benchmarking.suite import BenchmarkSuite
 from adaptive_agent_lab.environment.generator import generate_scenario
 from adaptive_agent_lab.environment.scenario import Scenario
 from adaptive_agent_lab.reporting.artifacts import fingerprint, read_json, write_json_atomic
-from adaptive_agent_lab.reporting.demo import (
-    DEFAULT_TRAINING_EPISODES,
-    write_demo_data,
-    write_demo_gallery,
-)
 from adaptive_agent_lab.version import __version__
 
 AgentFactory = Callable[[], Agent]
@@ -144,26 +139,6 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--measure-timing", action="store_true")
     benchmark_parser.set_defaults(handler=_handle_benchmark)
 
-    demo_parser = subparsers.add_parser(
-        "export-demo", help="train demo agents and export real replay data"
-    )
-    demo_parser.add_argument("--scenario", type=Path, required=True)
-    demo_parser.add_argument("--output", type=Path, required=True)
-    demo_parser.add_argument("--seed", type=_nonnegative_int, default=42)
-    demo_parser.add_argument(
-        "--training-episodes",
-        type=_nonnegative_int,
-        help="override the episode count for each learning agent",
-    )
-    demo_parser.set_defaults(handler=_handle_export_demo)
-
-    gallery_parser = subparsers.add_parser(
-        "export-gallery", help="train fresh demo agents for each configured gallery case"
-    )
-    gallery_parser.add_argument("--config", type=Path, required=True)
-    gallery_parser.add_argument("--output", type=Path, required=True)
-    gallery_parser.add_argument("--seed", type=_nonnegative_int, default=42)
-    gallery_parser.set_defaults(handler=_handle_export_gallery)
     return parser
 
 
@@ -336,50 +311,6 @@ def _handle_benchmark(args: argparse.Namespace) -> int:
     )
     for name, path in sorted(paths.items()):
         print(f"{name}={path}")
-    return 0
-
-
-def _handle_export_demo(args: argparse.Namespace) -> int:
-    scenario = load_scenario(args.scenario)
-    episodes = (
-        DEFAULT_TRAINING_EPISODES
-        if args.training_episodes is None
-        else {
-            name: args.training_episodes
-            for name in TRAINABLE_AGENT_NAMES
-        }
-    )
-    payload = write_demo_data(
-        args.output,
-        scenario,
-        root_seed=args.seed,
-        training_episodes=episodes,
-    )
-    agents = payload["agents"]
-    assert isinstance(agents, list)
-    print(
-        f"wrote {args.output} | paired agents={len(agents)} | "
-        f"scenario={scenario.scenario_id}"
-    )
-    return 0
-
-
-def _handle_export_gallery(args: argparse.Namespace) -> int:
-    payload = write_demo_gallery(
-        args.output,
-        args.config,
-        root_seed=args.seed,
-    )
-    cases = payload["cases"]
-    default_case_id = payload["defaultCaseId"]
-    root_seed = payload["rootSeed"]
-    assert isinstance(cases, list)
-    assert isinstance(default_case_id, str)
-    assert isinstance(root_seed, int)
-    print(
-        f"wrote {args.output} | gallery cases={len(cases)} | "
-        f"default={default_case_id} | seed={root_seed}"
-    )
     return 0
 
 

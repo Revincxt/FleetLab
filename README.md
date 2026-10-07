@@ -2,7 +2,7 @@
 
 # FleetLab
 
-Multi-AGV warehouse simulation and interactive 3D replay.
+Coordinated forklifts. Shared factory floors. Interactive 3D simulation replays.
 
 [![CI](https://github.com/Revincxt/FleetLab/actions/workflows/ci.yml/badge.svg)](https://github.com/Revincxt/FleetLab/actions/workflows/ci.yml)
 [![Node.js 22.13+](https://img.shields.io/badge/Node.js-22.13%2B-417E38.svg)](web/package.json)
@@ -12,16 +12,16 @@ Multi-AGV warehouse simulation and interactive 3D replay.
 
 </div>
 
-[![FleetLab showing a 3D factory, forklifts, chargers, and a shared task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/FleetLab/)
+[![FleetLab industrial factory with task-scoped routes, fleet and charger status, and a compact task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/FleetLab/)
 
 ## Overview
 
-FleetLab brings warehouse fleet operations into an interactive 3D workspace.
-Python simulates the fleet; the web app visualizes recorded runs.
+FleetLab simulates warehouse fleets sharing tasks, navigating traffic, and recharging.
+A Python simulator generates reproducible runs; the 3D web viewer lets you explore them.
 
-- **Fleet operations** — Shared tasks, coordinated routes, automatic charging, and vehicle status.
-- **Factory view** — Switch layouts and inspect forklift cargo, task locations, and vehicle trails.
-- **Replay** — Follow progressive task releases with playback, timeline, and task-filter controls.
+- **Factory floor** — Four layouts with working forklifts, visible cargo, and three patrolling workers that planners avoid.
+- **Task routes** — Inspect the selected forklift's current task: solid lines show travel so far, dashed lines show its recorded plan. Finished task markers disappear.
+- **Operations** — Seeded tasks arrive progressively. Track the fleet, charging stations, and task queue with playback and timeline controls.
 
 ## Routing algorithms
 
@@ -31,8 +31,8 @@ Python simulates the fleet; the web app visualizes recorded runs.
 | WHCA* | Windowed space-time planning with rotating vehicle priority. |
 | RHCR + PBS | Rolling-horizon planning with conflict-driven priority search. |
 
-All three share task allocation, charging rules, and seeded scenarios.
-The selector switches between their recorded runs.
+Switch between recorded runs using the algorithm selector. All three use the same task
+allocation and charging rules; windowed planners display their current planning horizon.
 
 ## Quick start
 
@@ -84,9 +84,14 @@ From `web/`:
 
 ```bash
 pnpm lint
-pnpm test:scene
 pnpm test:pages
 ```
 
-The checks cover scene behavior, recorded fleet data, and the static GitHub Pages build.
-`pnpm build:pages` creates `web/dist/pages/` without publishing it.
+The checks cover documentation assets, scene behavior, replay data, and the GitHub Pages export.
+`pnpm test:server` also checks the local server build. `pnpm build:pages` creates
+`web/dist/pages/` without publishing; pushes to `main` are deployed by the
+[Pages workflow](.github/workflows/pages.yml).
+
+For Python checks, install `python -m pip install -e '.[dev]'`, then run `make check`
+from the repository root. The Python package retains its `adaptive_agent_lab` import
+path and `aal` CLI for scenario, training, and benchmark workflows.

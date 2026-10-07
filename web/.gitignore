@@ -39,10 +39,5 @@ next-env.d.ts
 /dist/
 /.wrangler/
 
-# The Sites Vite plugin is source code, not generated build output. The
-# repository-level Python ignore rule otherwise hides this directory.
-!/build/
-/build/*
-!/build/sites-vite-plugin.ts
 /outputs/
 /work/

@@ -1,4 +1,4 @@
-"""Shared scenario representation for research and fleet replay exports."""
+"""Scenario representation for fleet replay exports."""
 
 from adaptive_agent_lab.environment.scenario import Scenario
 

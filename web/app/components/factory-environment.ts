@@ -18,20 +18,20 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   const transform = new THREE.Object3D();
   const metal = (color: number, roughness = 0.65, metalness = 0.2) => resources.material(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
   const materials = {
-    steel: metal(0x314e61, 0.48, 0.55),
-    beam: metal(0x799196, 0.55, 0.35),
-    shelf: metal(0x526c7a, 0.55, 0.4),
-    wood: metal(0x777667, 0.95, 0),
-    carton: metal(0x9b8f76, 0.98, 0),
-    lightCarton: metal(0xb3a78f, 0.98, 0),
-    tape: metal(0xd8c7a4, 0.9, 0),
-    crate: metal(0x637c80, 0.8, 0.04),
-    casing: metal(0x778f95, 0.56, 0.35),
-    dark: metal(0x303b42, 0.65, 0.25),
-    yellow: metal(0x86a89d, 0.8, 0),
-    white: metal(0xa5bac1, 0.87, 0),
-    wall: metal(0x445e6c, 0.9, 0.05),
-    wallBase: metal(0x2d4554, 0.8, 0.12),
+    steel: metal(0x3e4b52, 0.52, 0.5),
+    beam: metal(0xb17b42, 0.64, 0.25),
+    shelf: metal(0x717a7b, 0.63, 0.35),
+    wood: metal(0x8a765a, 0.95, 0),
+    carton: metal(0xad9877, 0.98, 0),
+    lightCarton: metal(0xc0af90, 0.98, 0),
+    tape: metal(0xd0bd93, 0.9, 0),
+    crate: metal(0x617674, 0.8, 0.04),
+    casing: metal(0x97a09e, 0.6, 0.3),
+    dark: metal(0x30383a, 0.7, 0.25),
+    yellow: metal(0xc3a557, 0.88, 0),
+    white: metal(0xc3c9c5, 0.9, 0),
+    wall: metal(0x858d8a, 0.95, 0.02),
+    wallBase: metal(0x414d51, 0.85, 0.12),
     red: metal(0xa95043, 0.7, 0.1),
     screen: resources.material(new THREE.MeshStandardMaterial({ color: 0x426879, emissive: 0x437f93, emissiveIntensity: 0.4, roughness: 0.4 })),
     light: resources.material(new THREE.MeshStandardMaterial({ color: 0xf4f1db, emissive: 0xfff5d6, emissiveIntensity: 1.5 })),
@@ -63,9 +63,9 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   }
   function sign(text: string, x: number, y: number, z: number, size: number, floor = false) {
     const map = texture(512, 96, (ctx) => {
-      ctx.fillStyle = floor ? "#e2dfd0" : "#344d5b";
+      ctx.fillStyle = floor ? "#b8b49f" : "#303b40";
       ctx.fillRect(0, 0, 512, 96);
-      ctx.fillStyle = floor ? "#68716e" : "#edf1ed";
+      ctx.fillStyle = floor ? "#424b49" : "#e1e4db";
       ctx.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -78,8 +78,8 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
     scene.add(mesh);
   }
 
-  scene.add(new THREE.HemisphereLight(0xcce8ff, 0x34434f, 1.5));
-  const sun = new THREE.DirectionalLight(0xd7eeff, 2.4);
+  scene.add(new THREE.HemisphereLight(0xe1e9ed, 0x41433e, 1.6));
+  const sun = new THREE.DirectionalLight(0xfff3dc, 2.3);
   sun.position.set(-7, 18, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -92,13 +92,13 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   sun.shadow.bias = -0.0001;
   sun.shadow.radius = 2;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xe5edff, 0.65);
+  const fill = new THREE.DirectionalLight(0xc8dce5, 0.8);
   fill.position.set(8, 9, -5);
   scene.add(fill);
 
   // Deterministic concrete grain: a small repeating texture, not a large asset.
   const concrete = texture(512, 512, (ctx) => {
-    ctx.fillStyle = "#354c58";
+    ctx.fillStyle = "#626c6d";
     ctx.fillRect(0, 0, 512, 512);
     let seed = 617;
     for (let i = 0; i < 26000; i++) {
@@ -106,14 +106,14 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
       const x = seed % 512;
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       const y = seed % 512;
-      ctx.fillStyle = i % 2 ? "#ffffff0b" : "#28363009";
+      ctx.fillStyle = i % 2 ? "#ffffff09" : "#1c27250b";
       ctx.fillRect(x, y, 1 + i % 3, 1);
     }
   });
   concrete.wrapS = concrete.wrapT = THREE.RepeatWrapping;
   concrete.repeat.set(width / 4, height / 4);
   const floorMaterial = resources.material(new THREE.MeshStandardMaterial({ color: 0xffffff, map: concrete, roughness: 0.88, metalness: 0.02 }));
-  const foundation = new THREE.Mesh(resources.geometry(new RoundedBoxGeometry(width + 1.5, 0.28, height + 1.5, 2, 0.06)), metal(0x253b49));
+  const foundation = new THREE.Mesh(resources.geometry(new RoundedBoxGeometry(width + 1.5, 0.28, height + 1.5, 2, 0.06)), metal(0x303b3f));
   foundation.position.y = -0.17;
   foundation.castShadow = foundation.receiveShadow = true;
   scene.add(foundation);
@@ -125,7 +125,7 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   const seams: THREE.Vector3[] = [];
   for (let x = -width / 2; x <= width / 2; x += 4) seams.push(new THREE.Vector3(x, -0.01, -height / 2 - 0.65), new THREE.Vector3(x, -0.01, height / 2 + 0.65));
   for (let z = -height / 2; z <= height / 2; z += 4) seams.push(new THREE.Vector3(-width / 2 - 0.65, -0.01, z), new THREE.Vector3(width / 2 + 0.65, -0.01, z));
-  scene.add(new THREE.LineSegments(resources.geometry(new THREE.BufferGeometry().setFromPoints(seams)), resources.material(new THREE.LineBasicMaterial({ color: 0x747f7f, transparent: true, opacity: 0.35 }))));
+  scene.add(new THREE.LineSegments(resources.geometry(new THREE.BufferGeometry().setFromPoints(seams)), resources.material(new THREE.LineBasicMaterial({ color: 0x303b3c, transparent: true, opacity: 0.24 }))));
   const shadowFloor = new THREE.Mesh(resources.geometry(new THREE.PlaneGeometry(width * 4, height * 4)), resources.material(new THREE.ShadowMaterial({ opacity: 0.19 })));
   shadowFloor.rotation.x = -Math.PI / 2;
   shadowFloor.position.y = -0.32;
@@ -141,9 +141,16 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   for (let x = -width / 2; x <= width / 2; x += 4) {
     part("steel", x, 1.2, back + 0.08, 0.14, 2.4, 0.15);
     if (x + 1.9 <= width / 2) part("light", x + 1.25, 2.08, back + 0.12, 1.25, 0.075, 0.08);
+    if (x + 3 < width / 2) {
+      // Cladding joints and wall-mounted utilities remain outside the grid.
+      part("shelf", x + 2, 1.32, back + 0.076, 0.022, 1.6, 0.012);
+      part("casing", x + 2.7, 1.13, back + 0.14, 0.42, 0.50, 0.12);
+      for (let row = 0; row < 4; row++) part("dark", x + 2.7, 1.03 + row * 0.045, back + 0.206, 0.28, 0.012, 0.01);
+    }
   }
   part("shelf", 0, 2.33, back, width + 1.2, 0.12, 0.22);
-  part("yellow", 0, 1.84, back + 0.12, width + 0.6, 0.035, 0.035);
+  part("steel", 0, 1.87, back + 0.12, width + 0.6, 0.045, 0.065);
+  part("casing", 0, 1.92, back + 0.12, width + 0.6, 0.018, 0.018);
   for (let z = -height / 2; z <= height / 2; z += 4) part("steel", left + 0.09, 0.78, z, 0.16, 1.56, 0.14);
   for (const x of [-width * 0.27, width * 0.25]) {
     part("dark", x, 0.91, back + 0.12, 2.5, 1.82, 0.06);
@@ -193,6 +200,13 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
       if (level < 1.6) part("shelf", x, level + 0.035, z, 0.85, 0.025, 0.79);
       for (const dz of [-0.405, 0.405]) part("beam", x, level, z + dz, 0.88, 0.075, 0.055);
     }
+    // Reinforcement, rack ID plate and pallet stops live inside obstacle cells.
+    for (const dx of [-0.405, 0.405]) {
+      part("shelf", x + dx, 0.54, z, 0.025, 0.035, 0.79);
+      part("shelf", x + dx, 1.29, z, 0.025, 0.035, 0.79);
+    }
+    part("white", x - 0.26, 0.91, z + 0.438, 0.15, 0.052, 0.006);
+    part("dark", x - 0.26, 0.91, z + 0.442, 0.055, 0.023, 0.004);
     pallet(x, 0.23, z);
     for (const offset of [-0.19, 0.19]) {
       const finish = fixture.variant % 3 ? "carton" : "crate";

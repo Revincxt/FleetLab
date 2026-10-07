@@ -21,13 +21,13 @@ web-install:
 	pnpm --dir web install --frozen-lockfile
 
 web-build:
-	pnpm --dir web run build
+	pnpm --dir web run build:pages
 
 web-test:
 	pnpm --dir web run test
 
 demo:
-	aal run --agent replanning --scenario scenarios/small/dynamic-demo.json --seed 42
+	pnpm --dir web run dev
 
 clean:
 	python -c "from pathlib import Path; [p.unlink() for p in Path('.').rglob('*.pyc')]"

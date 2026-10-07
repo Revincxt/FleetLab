@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adaptive-agent-lab"
 version = "0.2.0"
-description = "A reproducible laboratory for planning, reinforcement learning, and hybrid agents in dynamic warehouse delivery."
+description = "FleetLab warehouse fleet simulation, coordinated routing, and reproducible agent experiments."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -41,9 +41,9 @@ dev = [
 aal = "adaptive_agent_lab.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Revincxt/adaptive-agent"
-Repository = "https://github.com/Revincxt/adaptive-agent"
-Issues = "https://github.com/Revincxt/adaptive-agent/issues"
+Homepage = "https://revincxt.github.io/FleetLab/"
+Repository = "https://github.com/Revincxt/FleetLab"
+Issues = "https://github.com/Revincxt/FleetLab/issues"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

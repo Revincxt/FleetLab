@@ -205,16 +205,15 @@ test("removes the bottom forklift status strip while retaining fleet status and 
   assert.match(page, /<WarehouseScene[^\n]+\n\s*<\/div>\n\s*<div className="replay-controls">/);
 });
 
-test("keeps chargers above an independently scrolling task queue without pagination", async () => {
+test("keeps task progress above an independently scrolling task queue without pagination", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   const right = page.slice(page.indexOf('<div className="operations-panel">'));
-  assert.ok(right.indexOf('className="chargers-panel') < right.indexOf('className={"tasks-panel'), "Chargers precede Tasks in the right column");
-  assert.match(right, /chargingStationState\(station, frame\)/);
-  for (const copy of ["Charging", "Occupied", "Unoccupied", "Vehicle battery level", "Inspect AGV"]) assert.ok(right.includes(copy), copy);
-  assert.doesNotMatch(page.slice(0, page.indexOf('<div className="operations-panel">')), /dock-status|charger-list/);
+  assert.match(right, /<TaskProgress replay=\{replay\} time=\{time\}/);
+  assert.ok(right.indexOf('<TaskProgress') < right.indexOf('className={"tasks-panel'), "Task progress precedes Tasks in the right column");
+  assert.doesNotMatch(right, /chargers-panel|charger-list/);
   assert.match(right, /filteredOrders\.map/);
   assert.match(right, /key=\{replay\.caseId \+ "-" \+ taskFilter\}/);
   assert.match(right, /aria-label="Task list" tabIndex=\{0\} data-task-scroll/);
@@ -269,13 +268,15 @@ test("gives every charging station its own status-colored charger icon", async (
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ui-icon.tsx", import.meta.url), "utf8"),
   ]);
-  const cards = page.slice(page.indexOf('scenario.chargingStations.map'), page.indexOf('<aside className={"tasks-panel'));
+  const cards = page.slice(page.indexOf('scenario.chargingStations.map'), page.indexOf('<aside className={"fleet-panel'));
   assert.match(cards, /className="charger-symbol"><Icon name="charger"/);
   assert.doesNotMatch(cards, /<Icon name="bolt"/);
   assert.match(icons, /charger: "M2 21h13/);
   assert.match(css, /\.charger-symbol \{[^}]*color: var\(--charger-color\)/);
   assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--accent\)/);
   assert.match(css, /\.charger-card\.is-occupied \{ --charger-color: var\(--amber\)/);
+  assert.match(css, /\.charger-card-heading \{[^}]*flex-wrap: wrap/);
+  assert.match(css, /\.charger-battery \{[^}]*white-space: nowrap/);
 });
 
 test("parenthesizes task coordinates and anchors a vertical camera toolbar at the scene corner", async () => {
@@ -284,8 +285,8 @@ test("parenthesizes task coordinates and anchors a vertical camera toolbar at th
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/components/warehouse-scene.tsx", import.meta.url), "utf8"),
   ]);
-  assert.ok(page.includes('<i>P</i>({order.pickup.x}, {order.pickup.y})'));
-  assert.ok(page.includes('<i>D</i>({order.dropoff.x}, {order.dropoff.y})'));
+  assert.ok(page.includes('className="task-coordinate">({order.pickup.x}, {order.pickup.y})'));
+  assert.ok(page.includes('className="task-coordinate">({order.dropoff.x}, {order.dropoff.y})'));
   assert.match(css, /\.scene-camera-tools \{[^}]*right: 10px; bottom: 10px/);
   assert.match(css, /\.camera-controls \{[^}]*flex-direction: column/);
   assert.doesNotMatch(scene + css, /scene-bottom-bar/);
@@ -294,7 +295,38 @@ test("parenthesizes task coordinates and anchors a vertical camera toolbar at th
   for (const label of ['Top view', 'Reset camera', 'Zoom in', 'Zoom out']) assert.ok(scene.includes('aria-label="' + label + '"'));
 });
 
-test("keeps only the fleet and its recorded trail, without retired preview branches", async () => {
+test("groups task identity, aligned endpoints and exact priority in compact accessible cards", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  for (const part of ["task-identity", "task-card-body", "task-endpoints", "task-coordinate", "task-priority"]) {
+    assert.ok(page.includes('className="' + part + '"'), part);
+  }
+  assert.match(page, /task-endpoint-label">Pickup/);
+  assert.match(page, /task-endpoint-label">Delivery/);
+  assert.match(page, /<span>Priority<\/span><strong><Icon name="priority" \/>\{order.priority\}/);
+  assert.match(page, /aria-label=\{`\$\{isOrderMarkerVisible\(state\) \? "Locate" : "Inspect"\} task[^`]+Pickup[^`]+Delivery[^`]+Priority/);
+  assert.match(page, /aria-pressed=\{selectedOrderId === order.id\}/);
+  assert.match(css, /\.task-card-body \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.task-coordinate \{[^}]*font-variant-numeric: tabular-nums/);
+  assert.doesNotMatch(page + css, /task-card-meta|route-connector|className="task-route"/);
+});
+
+test("hides completed task markers even when their history card is selected", async () => {
+  const [page, renderer] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/warehouse-renderer.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /visibleSelectedOrderId = [^\n]+isOrderMarkerVisible\(orderStates\[index\]\)/);
+  assert.match(renderer, /group\.visible = isOrderEndpointVisible\(state, endpoint\)/);
+  assert.match(renderer, /if \(!group\.visible\) return/);
+  assert.match(renderer, /if \(highlighted && !marker\.label\)/);
+  assert.match(renderer, /marker\.label\.visible = highlighted/);
+  assert.doesNotMatch(renderer, /state === "delivered" \? 0\.22/);
+});
+
+test("shows only the current task's completed route and recorded plan without old preview controls", async () => {
   const [page, css, model, renderer] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -305,7 +337,10 @@ test("keeps only the fleet and its recorded trail, without retired preview branc
   assert.doesNotMatch(page + model + renderer, /futureRoute|referenceRoute|frameRobots|shouldAnimateMove|referencePosition|futureSegments/);
   assert.match(model, /fleet: MazeRobot\[\]/);
   assert.match(renderer, /this\.route = this\.makeRoute\(\)/);
-  assert.match(page, /primaryRoute: replay\.frames\.slice\(0, time \+ 1\)/);
+  assert.match(page, /primaryRoute: currentTaskRoute\(replay, time, selectedIndex\)/);
+  assert.doesNotMatch(page, /primaryRoute: replay\.frames\.slice\(0/);
+  assert.match(renderer, /this\.plannedRoute = this\.makeRoute\(true\)/);
+  assert.match(renderer, /dashedRouteSegments\(\[lead\.edge\], progress\)/);
 });
 
 test("removes the Statistics view and its unused styles while retaining the map and algorithms", async () => {
@@ -321,15 +356,18 @@ test("removes the Statistics view and its unused styles while retaining the map 
   assert.match(page, /<WarehouseScene/);
 });
 
-test("keeps task progress above an independently scrolling fleet", async () => {
+test("keeps chargers above an independently scrolling fleet and retains task history", async () => {
   const [page, progress, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   const sidebar = page.slice(page.indexOf('<div className="fleet-sidebar">'), page.indexOf('<section className="map-panel"'));
-  assert.match(sidebar, /<TaskProgress replay=\{replay\} time=\{time\}/);
-  assert.ok(sidebar.indexOf('<TaskProgress') < sidebar.indexOf('<aside'));
+  assert.match(sidebar, /className="chargers-panel side-panel"/);
+  assert.ok(sidebar.indexOf('className="chargers-panel') < sidebar.indexOf('<aside'));
+  assert.match(sidebar, /chargingStationState\(station, frame\)/);
+  for (const copy of ["Charging", "Occupied", "Unoccupied", "Vehicle battery level", "Inspect AGV"]) assert.ok(sidebar.includes(copy), copy);
+  assert.doesNotMatch(sidebar, /TaskProgress|dock-status/);
   assert.match(sidebar, /tabIndex=\{0\} data-fleet-scroll hidden=\{fleetCollapsed\}/);
   assert.match(page, /closest\([^\n]+\[data-fleet-scroll\]/);
   assert.doesNotMatch(page + css, /fleet-is-collapsed/);

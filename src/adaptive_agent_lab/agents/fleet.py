@@ -37,6 +37,7 @@ class FleetDispatcher:
             )
         )
         self.assignments: dict[str, str] = {}
+        self.planned_paths: dict[str, tuple[Position, ...]] = {}
         self.charging: dict[str, Position] = {}
         self.parking: dict[str, Position] = {}
         scenario = environment.scenario
@@ -69,6 +70,9 @@ class FleetDispatcher:
 
     def actions(self) -> dict[str, Action]:
         state = self.environment.state
+        self.planned_paths = {
+            key: (robot.position, robot.position) for key, robot in state.robots.items()
+        }
         scenario = self.environment.scenario
         orders = {order.order_id: order for order in scenario.orders}
         self.assignments = {
@@ -180,15 +184,20 @@ class FleetDispatcher:
             if robot.position == target:
                 actions[key] = Action.WAIT
         if self.router is not None:
-            return self.router.actions(
+            result = self.router.actions(
                 time=state.time,
                 starts={key: robot.position for key, robot in state.robots.items()},
                 goals=goals,
                 fixed=actions,
                 batteries={key: robot.battery for key, robot in state.robots.items()},
                 blocked=state.blocked_cells,
+                occupied=self.environment.worker_reservations,
             )
-        occupied = {robot.position for robot in state.robots.values()}
+            self.planned_paths = self.router.paths_at(state.time)
+            return result
+        occupied = {robot.position for robot in state.robots.values()} | set(
+            self.environment.worker_reservations
+        )
         for key, robot in state.robots.items():
             if key in actions:
                 continue
@@ -200,6 +209,10 @@ class FleetDispatcher:
                 else Action.WAIT
             )
             if actions[key].is_movement:
+                points = [robot.position]
+                for action in route.actions:
+                    points.append(points[-1].moved(action))
+                self.planned_paths[key] = tuple(points)
                 # Reserve this destination and release the vacated cell for the
                 # next planner. This breaks symmetric side-stepping in aisles;
                 # the environment still arbitrates every simultaneous move.

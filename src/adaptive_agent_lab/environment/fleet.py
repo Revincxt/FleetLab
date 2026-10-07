@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 
 from adaptive_agent_lab.environment.contracts import Action, OrderStatus, Position, RobotState
 from adaptive_agent_lab.environment.events import EventKind
 from adaptive_agent_lab.environment.scenario import Scenario
+from adaptive_agent_lab.environment.workforce import WorkerPatrol, WorkerState
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,10 +24,12 @@ class FleetState:
     order_status: Mapping[str, OrderStatus]
     blocked_cells: frozenset[Position]
     terminated: bool
+    workers: Mapping[str, WorkerState] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "robots", MappingProxyType(dict(self.robots)))
         object.__setattr__(self, "order_status", MappingProxyType(dict(self.order_status)))
+        object.__setattr__(self, "workers", MappingProxyType(dict(self.workers)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +48,15 @@ class FleetStep:
 class FleetEnvironment:
     """Authoritative joint-action simulation with unit-capacity forklifts."""
 
-    def __init__(self, scenario: Scenario, starts: Mapping[str, Position]) -> None:
+    def __init__(
+        self,
+        scenario: Scenario,
+        starts: Mapping[str, Position],
+        *,
+        worker_count: int = 0,
+        worker_seed: int = 17,
+        worker_starts: Mapping[str, Position] | None = None,
+    ) -> None:
         if scenario.initial_robot.carried_order_id is not None:
             raise ValueError("fleet episodes must start without a carried order")
         if not starts or any(not isinstance(key, str) or not key.strip() for key in starts):
@@ -58,6 +69,11 @@ class FleetEnvironment:
             raise ValueError("vehicle starts must be traversable")
         self.scenario = scenario
         self.starts = MappingProxyType(dict(sorted(starts.items())))
+        if type(worker_count) is not int or worker_count < 0 or type(worker_seed) is not int:
+            raise ValueError("worker count must be nonnegative and worker seed must be an integer")
+        self.worker_count = worker_count
+        self.worker_seed = worker_seed
+        self.worker_starts = dict(worker_starts) if worker_starts is not None else None
         self._orders = {order.order_id: order for order in scenario.orders}
         self._state: FleetState
         self.reset()
@@ -65,6 +81,24 @@ class FleetEnvironment:
     @property
     def state(self) -> FleetState:
         return self._state
+
+    @property
+    def worker_reservations(self) -> frozenset[Position]:
+        """Occupied cells and committed next cells, not predicted future patrols."""
+        return frozenset(
+            point
+            for workers in (self.state.workers, self._next_workers)
+            for worker in workers.values()
+            for point in worker.reserved_cells
+        )
+
+    def _plan_workers(self) -> None:
+        self._next_workers = self._patrol.advance(
+            self.state.workers,
+            frozenset(robot.position for robot in self.state.robots.values()),
+            self.state.blocked_cells,
+            self.state.time,
+        )
 
     def reset(self) -> FleetState:
         statuses = {
@@ -77,6 +111,14 @@ class FleetEnvironment:
         self._events(0, statuses, blocked)
         if blocked & set(self.starts.values()):
             raise ValueError("vehicle starts cannot be dynamically blocked at time zero")
+        self._patrol = WorkerPatrol(self.scenario.map, self.worker_seed)
+        workers = self._patrol.initial(
+            self.worker_count,
+            frozenset(blocked) | frozenset(self.starts.values()),
+            self.worker_starts,
+        )
+        if set(workers) & set(self.starts):
+            raise ValueError("worker and vehicle IDs must be distinct")
         self._state = FleetState(
             0,
             {
@@ -86,7 +128,9 @@ class FleetEnvironment:
             statuses,
             frozenset(blocked),
             not statuses,
+            workers,
         )
+        self._plan_workers()
         return self.state
 
     def _events(self, time: int, statuses: dict[str, OrderStatus], blocked: set[Position]) -> None:
@@ -116,6 +160,7 @@ class FleetEnvironment:
         actions = dict(requested)
         violations: dict[str, list[str]] = {key: [] for key in robots}
         targets = {key: robot.position for key, robot in robots.items()}
+        yielded: set[str] = set()
         for key, robot in robots.items():
             if not actions[key].is_movement:
                 continue
@@ -134,6 +179,11 @@ class FleetEnvironment:
             if violation:
                 violations[key].append(violation)
                 actions[key] = Action.WAIT
+            elif target in self.worker_reservations:
+                # Pedestrians have right-of-way; retain battery and record a
+                # traffic yield even when a caller ignores planner reservations.
+                actions[key] = Action.WAIT
+                yielded.add(key)
             else:
                 targets[key] = target
 
@@ -142,7 +192,6 @@ class FleetEnvironment:
         keys = list(robots)
         offset = previous.time % len(keys)
         priority = keys[offset:] + keys[:offset]
-        yielded: set[str] = set()
         while True:
             cancelled: set[str] = set()
             for target, count in Counter(targets.values()).items():
@@ -218,7 +267,10 @@ class FleetEnvironment:
             }
             robots = {key: replace(robot, carried_order_id=None) for key, robot in robots.items()}
             terminated = True
-        self._state = FleetState(time, robots, statuses, frozenset(blocked), terminated)
+        self._state = FleetState(
+            time, robots, statuses, frozenset(blocked), terminated, self._next_workers
+        )
+        self._plan_workers()
         return FleetStep(
             self.state,
             actions,

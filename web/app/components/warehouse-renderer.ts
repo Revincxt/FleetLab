@@ -2,9 +2,12 @@ import * as THREE from "three";
 import { buildFactoryEnvironment } from "./factory-environment";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { isOrderMarkerVisible, progressiveRoute, routeCapacity, shouldAnimateFleetMove, toWorld, type GridPoint, type MazeFrame, type MazeRobot, type MazeScenario, type RouteSegment } from "./maze-model";
+import { dashedRouteSegments, isOrderEndpointVisible, progressiveRoute, routeCapacity, routeSegments, shouldAnimateFleetMove, toWorld, type GridPoint, type MazeFrame, type MazeRobot, type MazeScenario, type RouteSegment } from "./maze-model";
 import { createRobotMotion, retimeRobotMotion, sampleRobotMotion, type RobotMotion } from "./replay-motion";
 import { buildForkliftPayload, LOADED_FORK_LIFT } from "./forklift-payload";
+import { buildIndustrialForklift } from "./factory-forklift";
+import { buildWorkerTracks, interpolateWorker, type WorkerPose, type WorkerTrack, type WorkerTrafficFrame } from "./workforce-model";
+import { poseWorker, workerFactory, type WorkerVisual } from "./factory-workers";
 
 type RendererCallbacks = {
   onZoom: (zoom: number) => void;
@@ -20,11 +23,14 @@ type RobotVisual = {
   color: string;
   target: GridPoint | null;
   motion: RobotMotion | null;
+  wheels: THREE.Group[];
 };
+type TaskMarkerVisual = { group: THREE.Group; ink: THREE.MeshBasicMaterial; label: THREE.Sprite | null };
 type RouteVisual = {
   mesh: THREE.InstancedMesh;
   joints: THREE.InstancedMesh;
   material: THREE.MeshBasicMaterial;
+  dashed: boolean;
 };
 type TrailTip = {
   group: THREE.Group;
@@ -32,8 +38,14 @@ type TrailTip = {
   startCap: THREE.Mesh;
   endCap: THREE.Mesh;
 };
+type WorkerPresentation = {
+  visual: WorkerVisual;
+  track: WorkerTrack;
+  pose: WorkerPose;
+  motion: { from: WorkerPose; to: WorkerPose; startedAt: number; duration: number } | null;
+};
 
-/** Browser-only, demand-rendered scene. All coordinates come from the replay. */
+/** Demand-rendered replay of forklifts and cell-occupying workers. */
 export class WarehouseRenderer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-12, 12, 10, -10, 0.1, 120);
@@ -43,9 +55,14 @@ export class WarehouseRenderer {
   private readonly materials = new Set<THREE.Material>();
   private readonly textures = new Set<THREE.Texture>();
   private readonly closures = new Map<string, THREE.Group>();
-  private readonly orderMarkers: THREE.Group[][] = [];
+  private readonly orderMarkers: TaskMarkerVisual[][] = [];
   private readonly route: RouteVisual;
+  private readonly plannedRoute: RouteVisual;
+  private readonly plannedLeadMesh: THREE.InstancedMesh;
+  private plannedLead: { robot: RobotVisual; edge: RouteSegment } | null = null;
+  private readonly leadTransform = new THREE.Object3D();
   private readonly robots = new Map<string, RobotVisual>();
+  private readonly workers: WorkerPresentation[] = [];
   private trailTip: TrailTip | null = null;
   private trailRobot: RobotVisual | null = null;
   private readonly trailOrigin = new THREE.Vector3();
@@ -67,6 +84,8 @@ export class WarehouseRenderer {
     private readonly scenario: MazeScenario,
     frame: MazeFrame,
     private readonly callbacks: RendererCallbacks,
+    traffic: WorkerTrafficFrame[],
+    workerMoveSteps: number,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -77,7 +96,7 @@ export class WarehouseRenderer {
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1;
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.domElement.tabIndex = 0;
       this.renderer.domElement.title = "Drag to orbit · Scroll to zoom";
       this.renderer.domElement.setAttribute("role", "img");
@@ -100,7 +119,21 @@ export class WarehouseRenderer {
       this.controls.addEventListener("change", this.onCameraChange);
 
       this.buildEnvironment();
+      const makeWorker = workerFactory({ geometry: value => this.geometry(value), material: value => this.material(value) });
+      buildWorkerTracks(traffic, workerMoveSteps).forEach((track, index) => {
+        const visual = makeWorker(index);
+        this.scene.add(visual.group);
+        this.workers.push({ visual, track, pose: track.frames[0], motion: null });
+      });
+      this.renderer.domElement.dataset.workerCount = String(this.workers.length);
+      this.renderer.domElement.dataset.workerMode = "cell-reserved";
       this.route = this.makeRoute();
+      this.plannedRoute = this.makeRoute(true);
+      this.plannedLeadMesh = new THREE.InstancedMesh(this.plannedRoute.mesh.geometry, this.plannedRoute.material, 3);
+      this.plannedLeadMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.plannedLeadMesh.frustumCulled = false;
+      this.plannedLeadMesh.count = 0;
+      this.scene.add(this.plannedLeadMesh);
       this.trailTip = this.makeTrailTip(this.route);
       this.host.append(this.renderer.domElement);
       this.resizeObserver = new ResizeObserver(this.resize);
@@ -146,7 +179,7 @@ export class WarehouseRenderer {
     if (!context) throw new Error("Canvas labels are unavailable");
     context.fillStyle = background;
     context.beginPath();
-    context.roundRect(8, 8, 112, 112, 28);
+    context.roundRect(8, 8, 112, 112, 12);
     context.fill();
     context.strokeStyle = color;
     context.lineWidth = 3;
@@ -198,28 +231,45 @@ export class WarehouseRenderer {
     this.renderer.domElement.dataset.factoryRacks = String(fixtures.racks);
     this.renderer.domElement.dataset.factoryMachines = String(fixtures.machines);
     const markerGeometry = this.geometry(new THREE.BoxGeometry(0.82, 0.009, 0.82));
-    const chargerMaterial = this.standard(0x789da3);
+    const chargerMaterial = this.standard(0x547369);
     this.scenario.chargingStations.forEach((point) => {
       const disc = new THREE.Mesh(markerGeometry, chargerMaterial);
       disc.position.copy(this.world(point, 0.009));
-      const label = this.badge("charge", "#8bbeef", "#162c44");
-      label.position.copy(this.world(point, 0.4));
+      const label = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(0.40, 0.40)), this.material(new THREE.MeshBasicMaterial({ map: this.labelTexture("charge", "#aec7b9", "#253b35"), transparent: true, depthWrite: false, toneMapped: false })));
+      label.rotation.x = -Math.PI / 2;
+      label.position.copy(this.world(point, 0.02));
       this.scene.add(disc, label);
     });
+    // Shared floor stencils replace hundreds of floating task billboards.
+    const corners: number[] = [];
+    const rectangle = (x: number, z: number, width: number, depth: number) => {
+      const a = [x - width / 2, 0, z - depth / 2], b = [x + width / 2, 0, z - depth / 2];
+      const c = [x + width / 2, 0, z + depth / 2], d = [x - width / 2, 0, z + depth / 2];
+      corners.push(...a, ...d, ...b, ...b, ...d, ...c);
+    };
+    for (const x of [-1, 1]) for (const z of [-1, 1]) {
+      rectangle(x * 0.27, z * 0.34, 0.17, 0.035);
+      rectangle(x * 0.34, z * 0.27, 0.035, 0.17);
+    }
+    const stencilGeometry = this.geometry(new THREE.BufferGeometry());
+    stencilGeometry.setAttribute("position", new THREE.Float32BufferAttribute(corners, 3));
+    const glyphGeometry = this.geometry(new THREE.PlaneGeometry(0.27, 0.27));
+    const glyphs = [this.labelTexture("P", "#a2c7b4", "#263a32"), this.labelTexture("D", "#dbc08c", "#3a3326")].map(map => this.material(new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false })));
     this.scenario.orders.forEach((order, index) => {
       const groups = [order.pickup, order.dropoff].map((point, endpoint) => {
         const group = new THREE.Group();
         group.position.copy(this.world(point));
         const pickup = endpoint === 0;
-        const material = this.standard(pickup ? 0x285249 : 0x675f42);
-        material.transparent = true;
-        const base = new THREE.Mesh(markerGeometry, material);
-        base.position.y = 0.01;
-        const label = this.badge(`${pickup ? "P" : "D"}${index + 1}`, pickup ? "#7ed7ad" : "#e5bd75");
-        label.position.set(pickup ? -0.12 : 0.12, 0.48, pickup ? -0.12 : 0.12);
-        group.add(base, label);
+        group.name = `task-${index + 1}-${pickup ? "pickup" : "delivery"}`;
+        const ink = this.material(new THREE.MeshBasicMaterial({ color: pickup ? 0x8db79f : 0xcfaf75, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false }));
+        const base = new THREE.Mesh(stencilGeometry, ink);
+        base.position.y = pickup ? 0.018 : 0.02;
+        const glyph = new THREE.Mesh(glyphGeometry, glyphs[endpoint]);
+        glyph.rotation.x = -Math.PI / 2;
+        glyph.position.set(pickup ? -0.17 : 0.17, 0.024, 0);
+        group.add(base, glyph);
         this.scene.add(group);
-        return group;
+        return { group, ink, label: null };
       });
       this.orderMarkers.push(groups);
     });
@@ -228,85 +278,45 @@ export class WarehouseRenderer {
 
   private makeRobot(letter: string, color: string): RobotVisual {
     const group = new THREE.Group();
-    const chassis = new THREE.Group();
-    const tint = this.standard(color);
-    const white = this.standard(0xf7faff);
-    const dark = this.standard(0x354457);
-    const bumper = new THREE.Mesh(this.geometry(new RoundedBoxGeometry(0.66, 0.12, 0.74, 2, 0.035)), dark);
-    bumper.position.y = 0.17;
-    bumper.castShadow = true;
-    const body = new THREE.Mesh(this.geometry(new RoundedBoxGeometry(0.57, 0.28, 0.65, 3, 0.08)), white);
-    body.position.y = 0.24;
-    body.castShadow = true;
-    const top = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(0.2, 0.22, 0.075, 24)), tint);
-    top.position.y = 0.415;
-    top.castShadow = true;
-    const lidar = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(0.075, 0.075, 0.075, 16)), dark);
-    lidar.position.set(0, 0.49, -0.13);
-    const lightMaterial = this.material(new THREE.MeshStandardMaterial({ color: 0xc5e7f0, emissive: 0x5d9dbb, emissiveIntensity: 1 }));
-    for (const x of [-0.2, 0.2]) {
-      const light = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(0.10, 0.035, 0.015)), lightMaterial);
-      light.position.set(x, 0.27, 0.333);
-      chassis.add(light);
-    }
-    const wheelGeometry = this.geometry(new THREE.CylinderGeometry(0.115, 0.115, 0.08, 16));
-    for (const x of [-0.3, 0.3]) {
-      for (const z of [-0.2, 0.2]) {
-        const wheel = new THREE.Mesh(wheelGeometry, dark);
-        wheel.rotation.z = Math.PI / 2;
-        wheel.position.set(x, 0.12, z);
-        wheel.castShadow = true;
-        chassis.add(wheel);
-      }
-    }
+    const { chassis, lift, wheels, tint } = buildIndustrialForklift({ geometry: value => this.geometry(value), material: value => this.material(value) }, color);
     const ring = new THREE.Mesh(
-      this.geometry(new THREE.RingGeometry(0.34, 0.4, 40)),
-      this.material(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false })),
+      this.geometry(new THREE.RingGeometry(0.37, 0.39, 32)),
+      this.material(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, depthWrite: false })),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.025;
-    const badge = this.badge(letter, "#071f27", color, true);
-    badge.position.y = 1.7;
+    const badge = this.badge(letter, color, "#1b2429", true);
+    badge.position.y = 1.45;
     // The carriage carries both forks and cargo; empty forks return to floor height.
-    const lift = new THREE.Group();
-    for (const x of [-0.19, 0.19]) {
-      const mast = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(0.055, 0.84, 0.065)), dark);
-      mast.position.set(x, 0.57, 0.21);
-      const fork = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(0.075, 0.035, 0.3)), dark);
-      fork.position.set(x, 0.15, 0.33);
-      mast.castShadow = fork.castShadow = true;
-      chassis.add(mast);
-      lift.add(fork);
-    }
     const payload = buildForkliftPayload({ geometry: (value) => this.geometry(value), material: (value) => this.material(value) });
     lift.add(payload);
-    chassis.add(bumper, body, top, lidar, ring, lift);
+    chassis.add(ring);
     group.add(chassis, badge);
     group.name = `robot-${letter}`;
     this.scene.add(group);
-    return { group, chassis, tint, badge, payload, lift, color, target: null, motion: null };
+    return { group, chassis, tint, badge, payload, lift, wheels, color, target: null, motion: null };
   }
 
-  private makeRoute(): RouteVisual {
-    const material = this.material(new THREE.MeshBasicMaterial({ color: 0x007aff, toneMapped: false }));
+  private makeRoute(dashed = false): RouteVisual {
+    const material = this.material(new THREE.MeshBasicMaterial({ color: 0xc9ee96, transparent: true, opacity: dashed ? 0.85 : 0.65, depthWrite: false, toneMapped: false }));
     const capacity = routeCapacity(this.scenario.width, this.scenario.height);
     const mesh = new THREE.InstancedMesh(
-      this.geometry(new THREE.CylinderGeometry(0.033, 0.033, 1, 8)),
+      this.geometry(new THREE.CylinderGeometry(0.022, 0.022, 1, 8)),
       material,
-      capacity.segments,
+      capacity.segments * (dashed ? 3 : 1),
     );
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
     mesh.count = 0;
     const joints = new THREE.InstancedMesh(
-      this.geometry(new THREE.SphereGeometry(0.033, 8, 6)), material,
-      capacity.joints,
+      this.geometry(new THREE.SphereGeometry(0.022, 8, 6)), material,
+      dashed ? 1 : capacity.joints,
     );
     joints.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     joints.frustumCulled = false;
     joints.count = 0;
     this.scene.add(mesh, joints);
-    return { mesh, joints, material };
+    return { mesh, joints, material, dashed };
   }
 
   private makeTrailTip(route: RouteVisual): TrailTip {
@@ -321,6 +331,7 @@ export class WarehouseRenderer {
   }
 
   private updateRoute(route: RouteVisual, segments: RouteSegment[], color: string, elevation: number) {
+    if (route.dashed) segments = dashedRouteSegments(segments);
     const transform = new THREE.Object3D();
     const joints = new Map<string, GridPoint>();
     segments.forEach(({ from, to }, index) => {
@@ -332,8 +343,10 @@ export class WarehouseRenderer {
       transform.scale.set(1, direction.length(), 1);
       transform.updateMatrix();
       route.mesh.setMatrixAt(index, transform.matrix);
-      joints.set(`${from.x}:${from.y}`, from);
-      joints.set(`${to.x}:${to.y}`, to);
+      if (!route.dashed) {
+        joints.set(`${from.x}:${from.y}`, from);
+        joints.set(`${to.x}:${to.y}`, to);
+      }
     });
     route.mesh.count = segments.length;
     route.mesh.instanceMatrix.needsUpdate = true;
@@ -357,7 +370,7 @@ export class WarehouseRenderer {
       visual.tint.color.set(data.color);
       const material = visual.badge.material;
       if (material.map) { material.map.dispose(); this.textures.delete(material.map); }
-      material.map = this.labelTexture(label, "#071f27", data.color);
+      material.map = this.labelTexture(label, data.color, "#1b2429");
       material.needsUpdate = true;
       visual.group.traverse((object) => {
         if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial) object.material.color.set(data.color);
@@ -395,7 +408,10 @@ export class WarehouseRenderer {
   private advanceRobot(visual: RobotVisual, now: number) {
     if (!visual.motion) return;
     const sample = sampleRobotMotion(visual.motion, now);
-    visual.group.position.copy(this.world(sample.position));
+    const position = this.world(sample.position);
+    const distance = visual.group.position.distanceTo(position);
+    visual.wheels.forEach(wheel => { wheel.rotation.x += distance / 0.105; });
+    visual.group.position.copy(position);
     visual.chassis.rotation.y = sample.heading;
     if (sample.complete) visual.motion = null;
   }
@@ -417,6 +433,66 @@ export class WarehouseRenderer {
     }
     tip.startCap.position.copy(this.trailOrigin);
     tip.endCap.position.copy(this.trailEnd);
+  }
+
+  private updatePlannedLead() {
+    const lead = this.plannedLead;
+    this.plannedLeadMesh.count = 0;
+    if (!lead) return;
+    const from = this.world(lead.edge.from);
+    const progress = Math.min(1, from.distanceTo(lead.robot.group.position));
+    const segments = dashedRouteSegments([lead.edge], progress);
+    const transform = this.leadTransform;
+    segments.forEach((segment, index) => {
+      const start = this.world(segment.from, 0.075), end = this.world(segment.to, 0.075);
+      const direction = end.clone().sub(start);
+      transform.position.copy(start).add(end).multiplyScalar(0.5);
+      transform.quaternion.setFromUnitVectors(this.up, direction.clone().normalize());
+      transform.scale.set(1, direction.length(), 1);
+      transform.updateMatrix();
+      this.plannedLeadMesh.setMatrixAt(index, transform.matrix);
+    });
+    this.plannedLeadMesh.count = segments.length;
+    this.plannedLeadMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private updateWorkers(frame: MazeFrame, now: number) {
+    this.advanceWorkers(now);
+    for (const worker of this.workers) {
+      if (this.previous?.time === frame.time && !this.reducedMotion.matches) {
+        if (worker.motion && (this.previous.animate !== frame.animate || this.previous.stepDuration !== frame.stepDuration)) {
+          const progress = Math.min(1, (now - worker.motion.startedAt) / worker.motion.duration);
+          const remaining = frame.animate ? frame.stepDuration ?? 260 : Math.min(120, (1 - progress) * worker.motion.duration);
+          worker.motion.duration = Math.max(1, remaining) / Math.max(0.001, 1 - progress);
+          worker.motion.startedAt = now - progress * worker.motion.duration;
+        }
+        continue;
+      }
+      const time = Math.max(0, Math.min(worker.track.frames.length - 1, frame.time));
+      const pose = worker.track.frames[time];
+      if (frame.animate && this.previous && frame.time === this.previous.time + 1 && !this.reducedMotion.matches) {
+        worker.motion = { from: worker.track.frames[Math.max(0, time - 1)], to: pose, startedAt: now, duration: frame.stepDuration ?? 260 };
+      } else {
+        worker.pose = pose;
+        worker.motion = null;
+      }
+    }
+    this.advanceWorkers(now);
+  }
+
+  private advanceWorkers(now: number) {
+    let moving = false;
+    for (const worker of this.workers) {
+      if (worker.motion) {
+        const progress = Math.min(1, (now - worker.motion.startedAt) / worker.motion.duration);
+        worker.pose = interpolateWorker(worker.motion.from, worker.motion.to, progress);
+        if (progress === 1) worker.motion = null;
+        else moving = true;
+      }
+      worker.visual.group.position.copy(this.world(worker.pose.position));
+      poseWorker(worker.visual, worker.pose);
+    }
+    return moving;
   }
 
   private makeClosure(point: GridPoint) {
@@ -463,14 +539,20 @@ export class WarehouseRenderer {
         this.robots.set(robot.id, visual);
       }
       this.moveRobot(visual, robot, robot.label ?? robot.id, frame, now);
-      visual.badge.scale.setScalar(robot.id === frame.primary.id ? 0.95 : 0.8);
+      visual.badge.scale.setScalar(robot.id === frame.primary.id ? 0.8 : 0.68);
     });
     const primary = this.robots.get(frame.primary.id);
-    const trail = progressiveRoute(frame.primaryRoute, Boolean(primary?.motion));
+    const taskRoute = frame.primaryRoute;
+    const trail = progressiveRoute(taskRoute?.completed ?? [], Boolean(primary?.motion));
     this.updateRoute(this.route, trail.segments, frame.primary.color, 0.06);
     this.trailRobot = trail.tip && primary ? primary : null;
     if (trail.tip) this.trailOrigin.copy(this.world(trail.tip.from, 0.06));
+    this.updateRoute(this.plannedRoute, routeSegments(taskRoute?.planned ?? []), frame.primary.color, 0.075);
+    const last = taskRoute?.completed.at(-2), next = taskRoute?.completed.at(-1), motion = primary?.motion;
+    this.plannedLead = primary && motion && last && next && last.x === motion.from.x && last.y === motion.from.y && next.x === motion.to.x && next.y === motion.to.y
+      ? { robot: primary, edge: { from: last, to: next } } : null;
     this.updateTrailTip();
+    this.updatePlannedLead();
     this.closures.forEach((group) => { group.visible = false; });
     frame.blocked.forEach((point) => {
       const key = `${point.x}:${point.y}`;
@@ -481,28 +563,25 @@ export class WarehouseRenderer {
     this.orderMarkers.forEach((markers, index) => {
       const state = frame.orderStates[index];
       const highlighted = frame.highlightedOrderId === this.scenario.orders[index].id;
-      const opacity = highlighted ? 1 : state === "delivered" ? 0.22 : 1;
-      markers.forEach((group, endpoint) => {
-        group.visible = isOrderMarkerVisible(state);
+      markers.forEach((marker, endpoint) => {
+        const { group, ink } = marker;
+        group.visible = isOrderEndpointVisible(state, endpoint);
         if (!group.visible) return;
-        group.scale.setScalar(highlighted ? 1.25 : 1);
-        group.traverse((object) => {
-          if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
-            const material = object.material as THREE.MeshStandardMaterial | THREE.SpriteMaterial;
-            material.opacity = opacity;
-            if (object instanceof THREE.Sprite) {
-              material.depthTest = !highlighted;
-              object.renderOrder = highlighted ? 15 : 0;
-            }
-            if (object instanceof THREE.Mesh) {
-              material.color.set(highlighted ? 0xc9ee96 : state === "expired" ? 0xc8856e : state === "carried" ? frame.orderColors?.[index] ?? 0x285249 : endpoint === 0 ? 0x285249 : 0x675f42);
-            }
-          }
-        });
+        group.scale.setScalar(highlighted ? 1.08 : 1);
+        ink.opacity = highlighted ? 1 : frame.highlightedOrderId ? 0.4 : 0.7;
+        ink.color.set(highlighted ? 0xc9ee96 : state === "carried" ? frame.orderColors?.[index] ?? 0xcfaf75 : endpoint === 0 ? 0x8db79f : 0xcfaf75);
+        if (highlighted && !marker.label) {
+          marker.label = this.badge(`${endpoint === 0 ? "P" : "D"}${index + 1}`, endpoint === 0 ? "#a2c7b4" : "#dbc08c", "#1b2429", true);
+          marker.label.position.set(endpoint === 0 ? -0.12 : 0.12, 0.58, 0);
+          marker.label.scale.setScalar(0.66);
+          group.add(marker.label);
+        }
+        if (marker.label) marker.label.visible = highlighted;
       });
     });
     const canvas = this.renderer.domElement;
-    canvas.dataset.taskPointCount = String(this.orderMarkers.filter((markers) => markers[0].visible).length * 2);
+    canvas.dataset.taskPointCount = String(this.orderMarkers.flat().filter(marker => marker.group.visible).length);
+    canvas.dataset.taskLabelCount = String(this.orderMarkers.flat().filter(marker => marker.group.visible && marker.label?.visible).length);
     canvas.setAttribute("aria-label", `${frame.description} Drag or use arrow keys to orbit; plus and minus to zoom; Home to reset the camera.`);
     canvas.dataset.time = String(frame.time);
     canvas.dataset.primaryPosition = `${frame.primary.position.x},${frame.primary.position.y}`;
@@ -512,6 +591,12 @@ export class WarehouseRenderer {
     canvas.dataset.vehiclePositions = JSON.stringify(fleet.map(({ id, position }) => ({ id, ...position })));
     canvas.dataset.carryingCount = String(fleet.filter((robot) => robot.carrying).length);
     canvas.dataset.highlightedOrder = frame.highlightedOrderId ?? "";
+    canvas.dataset.routeTask = taskRoute?.orderId ?? "";
+    canvas.dataset.routeSolidEdges = String(trail.segments.length);
+    canvas.dataset.routePlannedEdges = String(routeSegments(taskRoute?.planned ?? []).length);
+    canvas.dataset.routeSource = "recorded-plan";
+    this.updateWorkers(frame, now);
+    canvas.setAttribute("aria-description", "Solid lines show travel within the selected forklift's current task; dashed lines show its remaining recorded plan. Windowed plans update as the replay advances. Workers occupy grid cells reserved by the forklift planners.");
     this.previous = frame;
     this.invalidate();
   }
@@ -620,6 +705,8 @@ export class WarehouseRenderer {
       moving ||= Boolean(robot.motion);
     }
     this.updateTrailTip();
+    this.updatePlannedLead();
+    moving = this.advanceWorkers(now) || moving;
     this.renderer.render(this.scene, this.camera);
     const canvas = this.renderer.domElement;
     canvas.dataset.camera = `${this.controls.getAzimuthalAngle().toFixed(3)},${this.controls.getPolarAngle().toFixed(3)},${this.camera.zoom.toFixed(3)}`;
@@ -636,7 +723,16 @@ export class WarehouseRenderer {
         x: this.trailEnd.x + (this.scenario.width - 1) / 2,
         y: this.trailEnd.z + (this.scenario.height - 1) / 2,
       } : null,
+      plannedHead: this.plannedLead && this.plannedLeadMesh.count ? {
+        x: this.plannedLead.robot.group.position.x + (this.scenario.width - 1) / 2,
+        y: this.plannedLead.robot.group.position.z + (this.scenario.height - 1) / 2,
+      } : null,
+      plannedDashes: this.plannedRoute.mesh.count + this.plannedLeadMesh.count,
     });
+    canvas.dataset.workerFrame = JSON.stringify(this.workers.map(({ track, pose }) => ({
+      id: track.id, x: pose.position.x, y: pose.position.y, heading: pose.heading,
+      gait: pose.gait, activity: pose.activity,
+    })));
     if (moving) this.invalidate();
   };
 
@@ -653,8 +749,10 @@ export class WarehouseRenderer {
     this.controls.removeEventListener("change", this.onCameraChange);
     this.controls.dispose();
     this.trailRobot = null;
+    this.plannedLead = null;
     this.trailTip = null;
     this.robots.clear();
+    this.workers.length = 0;
     this.geometries.forEach((geometry) => geometry.dispose());
     this.materials.forEach((material) => material.dispose());
     this.textures.forEach((texture) => texture.dispose());

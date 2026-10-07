@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import * as THREE from "three";
-import { isAdjacent, isOrderMarkerVisible, progressiveRoute, routeCapacity, routeSegments, shouldAnimateFleetMove, toWorld } from "../app/components/maze-model.ts";
+import { dashedRouteSegments, isAdjacent, isOrderEndpointVisible, isOrderMarkerVisible, progressiveRoute, routeCapacity, routeSegments, shouldAnimateFleetMove, toWorld } from "../app/components/maze-model.ts";
 import { createRobotMotion, retimeRobotMotion, sampleRobotMotion } from "../app/components/replay-motion.ts";
 import { factoryFixtures, safetyEdges } from "../app/components/factory-layout.ts";
 import { chargingStationState, parseFleetGallery, displayedOrderState, isVehicleLoaded, releasedOrderEntries } from "../app/components/fleet-model.ts";
 import { fleetAlgorithms, fleetAlgorithm } from "../app/components/fleet-algorithms.ts";
 import { buildForkliftPayload, LOADED_FORK_LIFT } from "../app/components/forklift-payload.ts";
+import { buildIndustrialForklift } from "../app/components/factory-forklift.ts";
+import { currentTaskRoute, decodePlannedRoute } from "../app/components/task-route-model.ts";
 import { taskAreaPath, taskHistory, taskStepPath, chartCeiling } from "../app/components/task-progress-model.ts";
 import { batteryColors, batteryToneHints, eventLabels, fleetStatusTone, gridCellHint, orderLabels, simulationStepHint, statusColors, vehicleBatteryTone, vehicleStatusHint, vehicleStatusLabel, vehicleStatusTone } from "../app/components/fleet-terminology.ts";
 
@@ -65,12 +67,32 @@ test("three algorithms use separate deterministic runs on identical progressivel
       assert.deepEqual(replay.scenario, baseline.scenario, "Map, releases, closures and battery rules are identical");
       assert.equal(replay.scenarioFingerprint, baseline.scenarioFingerprint);
       assert.deepEqual(replay.vehicles, baseline.vehicles);
-      assert.deepEqual(replay.frames[0], baseline.frames[0]);
+      assert.deepEqual(replay.workforce, { count: 3, seed: 17, moveSteps: 3 });
+      const initialState = frame => ({ ...frame, vehicles: frame.vehicles.map(({ plannedMoves, ...vehicle }) => { assert.equal(typeof plannedMoves, "string"); return vehicle; }) });
+      assert.deepEqual(initialState(replay.frames[0]), initialState(baseline.frames[0]), "Initial world and dispatch match; solver plans may differ");
       assert.equal(replay.summary.completedOrders, 225);
       assert.equal(replay.summary.constraintViolations, 0);
       assert.equal(replay.summary.trafficWaits, 0);
       assert.equal(releasedOrderEntries(replay.scenario.orders, replay.frames[0]).length, 4);
       assert.equal(replay.frames.at(-1).completedOrders, 225);
+      for (const [time, frame] of replay.frames.entries()) {
+        const blocked = new Set(frame.blocked.map(p => p.x + ":" + p.y));
+        const workers = new Set((frame.workers ?? []).flatMap(w => [w.position.join(":"), ...(w.transit ? [w.transit.slice(0, 2).join(":")] : [])]));
+        for (const [i, vehicle] of frame.vehicles.entries()) {
+          assert.equal(typeof vehicle.plannedMoves, "string");
+          if (algorithm.id !== "coordinated-astar") assert.ok(vehicle.plannedMoves.length <= 16);
+          const points = decodePlannedRoute({x:vehicle.position[0],y:vehicle.position[1]}, vehicle.plannedMoves);
+          for (let j = 1; j < points.length; j++) {
+            const p = points[j], key = p.x + ":" + p.y;
+            if (isAdjacent(points[j - 1], p)) assert.equal(blocked.has(key), false);
+            assert.equal(workers.has(key), false);
+          }
+          if (time + 1 < replay.frames.length) {
+            const requested = replay.frames[time + 1].vehicles[i].requestedAction;
+            assert.equal(vehicle.plannedMoves[0], ({ up: "U", down: "D", left: "L", right: "R" })[requested] ?? ".", "Plan is aligned with its decision snapshot");
+          }
+        }
+      }
       if (algorithm.id !== "coordinated-astar") {
         assert.equal(replay.planner.algorithmId, algorithm.id);
         assert.equal(replay.planner.planningWindow, 16);
@@ -215,7 +237,7 @@ test("terminology distinguishes discrete grid state from interpolated presentati
 });
 
 test("vehicle labels describe actual action and cargo without inferring a charging or pickup destination", () => {
-  const base = gallery.cases[0].frames[0].vehicles[0];
+  const base = { ...gallery.cases[0].frames[0].vehicles[0], assignedOrderId: null, carriedOrderId: null };
   const assigned = { ...base, assignedOrderId: "order-001", action: "right", status: "collecting" };
   assert.equal(vehicleStatusLabel(assigned), "Assigned");
   assert.match(vehicleStatusHint(assigned), /may include a charging stop/);
@@ -311,10 +333,42 @@ test("loaded cargo is visible above the chassis and supported by the forks withi
   }
 });
 
-test("tasks appear only at their release step, including after seeking backwards", () => {
+test("industrial forklift geometry stays within its reserved cell while turning", () => {
+  const geometries = [], materials = [];
+  const resources = { geometry: value => { geometries.push(value); return value; }, material: value => { materials.push(value); return value; } };
+  const { chassis, lift, wheels, tint } = buildIndustrialForklift(resources, "#c9ee96");
+  try {
+    assert.equal(wheels.length, 4);
+    assert.equal(tint.color.getHexString(), "c9ee96");
+    for (const name of ["counterweight", "mast-upright", "fork-tine", "carriage-crossbar", "safety-beacon", "fleet-color-panel"]) assert.ok(chassis.getObjectByName(name), name);
+    const point = new THREE.Vector3();
+    for (const raised of [0, LOADED_FORK_LIFT]) {
+      lift.position.y = raised;
+      chassis.updateMatrixWorld(true);
+      chassis.traverse(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const positions = object.geometry.getAttribute("position");
+        for (let i = 0; i < positions.count; i++) {
+          point.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld);
+          assert.ok(Math.hypot(point.x, point.z) < 0.5, object.name + " stays inside the cell at every heading");
+        }
+      });
+    }
+  } finally {
+    geometries.forEach(geometry => geometry.dispose());
+    materials.forEach(material => material.dispose());
+  }
+});
+
+test("only active task endpoints appear; delivered tasks stay in history, not on the floor", () => {
   assert.equal(isOrderMarkerVisible("queued"), false);
   assert.equal(isOrderMarkerVisible(undefined), false);
-  for (const state of ["ready", "carried", "delivered", "expired"]) assert.equal(isOrderMarkerVisible(state), true);
+  for (const state of ["ready", "carried"]) assert.equal(isOrderMarkerVisible(state), true);
+  for (const state of ["delivered", "expired"]) assert.equal(isOrderMarkerVisible(state), false);
+  for (const state of [undefined, "queued", "ready", "carried", "delivered", "expired"]) {
+    assert.equal(isOrderEndpointVisible(state, 0), state === "ready");
+    assert.equal(isOrderEndpointVisible(state, 1), state === "ready" || state === "carried");
+  }
   for (const { scenario, frames } of gallery.cases) {
     assert.equal(releasedOrderEntries(scenario.orders, frames[0]).length, 4);
     assert.equal(releasedOrderEntries(scenario.orders, frames.at(-1)).length, 225);
@@ -332,7 +386,7 @@ test("tasks appear only at their release step, including after seeking backwards
     for (const frame of frames) {
       const released = releasedOrderEntries(scenario.orders, frame);
       const shownMarkers = scenario.orders.filter(order => isOrderMarkerVisible(displayedOrderState(frame.orderStates[order.id])));
-      assert.equal(shownMarkers.length, released.length, "Map markers and task queues agree");
+      assert.equal(shownMarkers.length, released.filter(({ order }) => ["available", "picked_up"].includes(frame.orderStates[order.id])).length, "Map shows only unfinished tasks from the released queue");
       assert.ok(frame.completedOrders <= released.length);
       for (const vehicle of frame.vehicles) {
         for (const id of [vehicle.assignedOrderId, vehicle.carriedOrderId].filter(Boolean)) {
@@ -341,6 +395,7 @@ test("tasks appear only at their release step, including after seeking backwards
       }
     }
     assert.equal(releasedOrderEntries(scenario.orders, frames[0]).length, 4, "Rewinding restores the initial queue");
+    assert.equal(scenario.orders.filter(order => isOrderMarkerVisible(displayedOrderState(frames.at(-1).orderStates[order.id]))).length, 0, "No task marker remains after the run completes");
   }
 });
 
@@ -398,6 +453,39 @@ test("grid coordinates become centered x/z coordinates without changing simulato
       assert.deepEqual({ x: result.x + (scenario.width - 1) / 2, y: result.z + (scenario.height - 1) / 2 }, point);
     }
   }
+});
+
+test("current task routes use only this assignment's history and the recorded plan", () => {
+  const vehicle = (x, id, moves, carrying = false) => ({ position: [x, 1], assignedOrderId: id, carriedOrderId: carrying ? id : null, plannedMoves: moves });
+  const replay = { frames: [
+    { vehicles: [vehicle(0, "old", "RR")], orderStates: { old: "available", task: "pending" } },
+    { vehicles: [vehicle(1, "task", "RR.")], orderStates: { old: "delivered", task: "available" } },
+    { vehicles: [vehicle(2, "task", "D.R", true)], orderStates: { old: "delivered", task: "picked_up" } },
+    { vehicles: [vehicle(2, null, "")], orderStates: { old: "delivered", task: "delivered" } },
+  ] };
+  const route = currentTaskRoute(replay, 2, 0);
+  assert.equal(route.orderId, "task");
+  assert.deepEqual(route.completed, [{x:1,y:1},{x:2,y:1}]);
+  assert.deepEqual(route.planned, [{x:2,y:1},{x:2,y:2},{x:2,y:2},{x:3,y:2}]);
+  assert.equal(currentTaskRoute(replay, 3, 0), null);
+  assert.equal(currentTaskRoute(replay, 1, 8), null);
+  assert.deepEqual(currentTaskRoute(replay, 1, 0).completed, [{x:1,y:1}]);
+  assert.equal(currentTaskRoute(replay, 0, 0).orderId, "old", "Rewinding restores the old task");
+  const prefix = { frames: replay.frames.slice(0, 3) };
+  assert.deepEqual(currentTaskRoute(prefix, 2, 0), route, "Future frames never determine a plan");
+  assert.throws(() => decodePlannedRoute({x:0,y:0}, "RX"), /Invalid/);
+});
+
+test("remaining route dashes stay anchored while the solid boundary advances", () => {
+  const edge = { from: {x:0,y:0}, to: {x:1,y:0} };
+  assert.equal(dashedRouteSegments([edge]).length, 3);
+  const clipped = dashedRouteSegments([edge], 0.4);
+  assert.equal(clipped.length, 2);
+  assert.equal(clipped[0].from.x, 0.4);
+  assert.deepEqual(clipped[1], dashedRouteSegments([edge])[2]);
+  assert.deepEqual(dashedRouteSegments([edge], 1), []);
+  assert.deepEqual(dashedRouteSegments([]), []);
+  for (const segment of clipped) assert.ok(segment.from.x >= 0.4 && segment.to.x > segment.from.x && segment.to.x <= 1);
 });
 
 test("routes skip waits and discontinuities, and deduplicate repeated edges", () => {
@@ -537,6 +625,9 @@ test("fleet gallery rejects missing maps, corrupt coordinates, collisions and du
     data => { data.cases[1].caseId = data.cases[0].caseId; },
     data => { data.cases[0].frames[0].vehicles[0].position = [-1, 0]; },
     data => { data.cases[0].frames[0].vehicles[0].battery = -1; },
+    data => { data.cases[0].frames[0].vehicles[0].plannedMoves = "X"; },
+    data => { data.cases[0].frames[0].vehicles[0].plannedMoves = 42; },
+    data => { data.cases[0].frames[0].vehicles[0].plannedMoves = "L".repeat(data.cases[0].scenario.width); },
     data => { data.cases[0].frames[0].vehicles[1].position = data.cases[0].frames[0].vehicles[0].position; },
     data => { const frame = data.cases[0].frames.find(f => f.vehicles.some(v => v.carriedOrderId)); const carrier = frame.vehicles.find(v => v.carriedOrderId); frame.vehicles.find(v => v.id !== carrier.id).carriedOrderId = carrier.carriedOrderId; },
   ]) {

@@ -2,7 +2,12 @@ export type GridPoint = { x: number; y: number };
 export type MazeOrderState = "queued" | "ready" | "carried" | "delivered" | "expired";
 
 export function isOrderMarkerVisible(state: MazeOrderState | undefined) {
-  return state !== undefined && state !== "queued";
+  return state === "ready" || state === "carried";
+}
+
+/** Pickup is no longer a destination once the load is on a forklift. */
+export function isOrderEndpointVisible(state: MazeOrderState | undefined, endpoint: number) {
+  return isOrderMarkerVisible(state) && (endpoint === 1 || state === "ready");
 }
 
 export type MazeScenario = {
@@ -28,13 +33,15 @@ export type MazeFrame = {
   stepDuration?: number;
   fleet: MazeRobot[];
   primary: MazeRobot;
-  primaryRoute: GridPoint[];
+  primaryRoute: TaskRoute | null;
   blocked: GridPoint[];
   orderStates: MazeOrderState[];
   orderColors?: (string | null)[];
   highlightedOrderId?: string | null;
   description: string;
 };
+
+export type TaskRoute = { orderId: string; completed: GridPoint[]; planned: GridPoint[] };
 
 export function shouldAnimateFleetMove(previous: MazeFrame | null, next: MazeFrame, id: string) {
   const before = previous?.fleet.find((robot) => robot.id === id);
@@ -44,6 +51,20 @@ export function shouldAnimateFleetMove(previous: MazeFrame | null, next: MazeFra
 }
 
 export type RouteSegment = { from: GridPoint; to: GridPoint };
+
+/** Three stationary dashes per grid edge; clip the moving edge at the vehicle. */
+export function dashedRouteSegments(segments: RouteSegment[], clip = 0): RouteSegment[] {
+  return segments.flatMap(({ from, to }) => {
+    const result: RouteSegment[] = [];
+    for (let index = 0; index < 3; index++) {
+      const start = Math.max(index / 3, clip), end = index / 3 + 0.21;
+      if (start >= end) continue;
+      const at = (t: number) => ({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t });
+      result.push({ from: at(start), to: at(end) });
+    }
+    return result;
+  });
+}
 
 /** A solid grid trail needs at most one instance per undirected edge and cell. */
 export function routeCapacity(width: number, height: number) {

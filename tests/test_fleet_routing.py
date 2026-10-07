@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from itertools import pairwise
 
 import pytest
 
@@ -68,6 +69,26 @@ def test_space_time_search_uses_waiting_reservations_and_energy_limits() -> None
 
 
 @pytest.mark.parametrize("algorithm", ["whca", "rhcr-pbs"])
+def test_people_invalidate_cached_paths_and_low_battery_waits_for_clearance(algorithm: str) -> None:
+    router = WindowedRouter(WarehouseMap(9, 3), algorithm, window=4, interval=4)
+    starts = {"a": Position(0, 1)}
+    common = {
+        "starts": starts,
+        "goals": {"a": Position(8, 1)},
+        "fixed": {},
+        "batteries": {"a": 8},
+        "blocked": frozenset(),
+    }
+    assert router.actions(time=0, **common)["a"] is Action.RIGHT  # type: ignore[arg-type]
+    # Same start and time: an incoming person invalidates the cached route.
+    occupied = frozenset({Position(1, 1)})
+    assert router.actions(time=0, occupied=occupied, **common)["a"] is Action.WAIT  # type: ignore[arg-type]
+    assert router.diagnostics.planning_calls == 2
+    assert router.actions(time=1, **common)["a"] is Action.RIGHT  # type: ignore[arg-type]
+    assert router.diagnostics.planning_calls == 3
+
+
+@pytest.mark.parametrize("algorithm", ["whca", "rhcr-pbs"])
 def test_rolling_window_reuses_prefix_and_invalidates_on_closures_and_goals(algorithm: str) -> None:
     router = WindowedRouter(WarehouseMap(9, 3), algorithm, window=8, interval=4)
     starts = {"a": Position(0, 1)}
@@ -81,8 +102,13 @@ def test_rolling_window_reuses_prefix_and_invalidates_on_closures_and_goals(algo
             batteries={"a": 30 - time},
             blocked=frozenset(),
         )
+        assert router.paths_at(time)["a"][0] == starts["a"]
+        assert router.paths_at(time)["a"][1] == starts["a"].moved(actions["a"])
+        assert len(router.paths_at(time)["a"]) == 9 - time
         starts["a"] = starts["a"].moved(actions["a"])
     assert router.diagnostics.planning_calls == 1
+    assert router.paths_at(-1) == {}
+    assert router.paths_at(9) == {}
     blocked = frozenset({Position(3, 1)})
     actions = router.actions(
         time=2, starts=starts, goals=goals, fixed={}, batteries={"a": 28}, blocked=blocked
@@ -147,10 +173,18 @@ def test_three_dispatchers_share_tasks_charging_and_authoritative_transitions(
     environment = FleetEnvironment(scenario, {"a": Position(0, 0), "b": Position(7, 4)})
     dispatcher = FleetDispatcher(environment, algorithm=algorithm)
     first = dispatcher.actions()
+    for key, path in dispatcher.planned_paths.items():
+        assert path[0] == environment.state.robots[key].position
+        assert path[1] == (path[0].moved(first[key]) if first[key].is_movement else path[0])
     assert "b" not in dispatcher.assignments.values(), "Unreleased tasks cannot be assigned"
     environment.step(first)
     while not environment.state.terminated:
-        result = environment.step(dispatcher.actions())
+        actions = dispatcher.actions()
+        for key, path in dispatcher.planned_paths.items():
+            assert path[0] == environment.state.robots[key].position
+            assert path[1] == (path[0].moved(actions[key]) if actions[key].is_movement else path[0])
+            assert all(a.manhattan_distance(b) <= 1 for a, b in pairwise(path))
+        result = environment.step(actions)
         assert not any(result.violations.values())
         assert not result.yielded
     assert all(status.value == "delivered" for status in environment.state.order_status.values())

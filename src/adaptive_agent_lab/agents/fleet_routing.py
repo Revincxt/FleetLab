@@ -69,6 +69,7 @@ class WindowedRouter:
         self._signature: object = None
         self._paths: Paths = {}
         self._planned_at = -window
+        self._pedestrians: list[Path] = []
 
     def _heuristic(self, goal: Position, blocked: frozenset[Position]) -> dict[Position, int]:
         # Reverse spatial BFS is the obstacle-aware abstract heuristic for the
@@ -98,6 +99,7 @@ class WindowedRouter:
         battery: int,
     ) -> Path | None:
         distance = self._heuristic(goal, blocked)
+        reservations = [*reservations, *self._pedestrians]
         vertices = [set(path[t] for path in reservations) for t in range(self.window + 1)]
         edges = [
             {(path[t - 1], path[t]) for path in reservations} if t else set()
@@ -137,6 +139,14 @@ class WindowedRouter:
                 if next_moves > battery or (
                     action.is_movement and not self.map.is_traversable(neighbor, blocked)
                 ):
+                    continue
+                if (
+                    action.is_movement
+                    and neighbor in distance
+                    and (next_moves + distance[neighbor] > battery)
+                ):
+                    # A pedestrian detour must not spend the energy needed to
+                    # reach the goal (especially a charger) beyond this window.
                     continue
                 if neighbor in vertices[next_time] or (neighbor, point) in edges[next_time]:
                     continue
@@ -236,6 +246,13 @@ class WindowedRouter:
                     stack.append(priorities | {edge})
         return None
 
+    def paths_at(self, time: int) -> Paths:
+        """Read the remaining committed window; never rerun or extend a plan."""
+        age = time - self._planned_at
+        if not 0 <= age <= self.window:
+            return {}
+        return {key: path[age:] for key, path in self._paths.items()}
+
     def actions(
         self,
         *,
@@ -245,8 +262,13 @@ class WindowedRouter:
         fixed: dict[str, Action],
         batteries: dict[str, int],
         blocked: frozenset[Position],
+        occupied: frozenset[Position] = frozenset(),
     ) -> dict[str, Action]:
-        signature = (tuple(goals.items()), tuple(fixed.items()), blocked)
+        signature = (tuple(goals.items()), tuple(fixed.items()), blocked, occupied)
+        # Conservative reservations until the next observation. Refresh whenever
+        # people move; do not guess where a random future patrol will go. Keeping
+        # these separate from geometry preserves the spatial heuristic cache.
+        self._pedestrians = [(point,) * (self.window + 1) for point in sorted(occupied)]
         age = time - self._planned_at
         reusable = (
             signature == self._signature

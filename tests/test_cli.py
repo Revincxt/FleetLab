@@ -340,64 +340,18 @@ def test_benchmark_agent_validation(value: str, message: str) -> None:
     )
 
 
-def test_export_demo_uses_default_and_override_episode_counts(
-    scenario_path: Path,
-    tmp_path: Path,
+@pytest.mark.parametrize("command", ["export-demo", "export-gallery"])
+def test_retired_demo_exports_are_not_cli_commands(
+    command: str,
     capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[tuple[Path, int, object]] = []
-
-    def fake_write_demo_data(
-        output: Path,
-        scenario: object,
-        *,
-        root_seed: int,
-        training_episodes: object,
-    ) -> dict[str, object]:
-        calls.append((output, root_seed, training_episodes))
-        return {"agents": [{"id": "planning"}, {"id": "hybrid"}]}
-
-    monkeypatch.setattr(cli, "write_demo_data", fake_write_demo_data)
-    first_output = tmp_path / "default.json"
-    assert (
-        cli.main(
-            [
-                "export-demo",
-                "--scenario",
-                str(scenario_path),
-                "--output",
-                str(first_output),
-                "--seed",
-                "12",
-            ]
-        )
-        == 0
-    )
-    assert "paired agents=2 | scenario=cli-fixture" in capsys.readouterr().out
-    assert calls[-1] == (first_output, 12, cli.DEFAULT_TRAINING_EPISODES)
-
-    second_output = tmp_path / "fast.json"
-    assert (
-        cli.main(
-            [
-                "export-demo",
-                "--scenario",
-                str(scenario_path),
-                "--output",
-                str(second_output),
-                "--training-episodes",
-                "0",
-            ]
-        )
-        == 0
-    )
-    assert "paired agents=2" in capsys.readouterr().out
-    assert calls[-1] == (
-        second_output,
-        42,
-        {name: 0 for name in cli.TRAINABLE_AGENT_NAMES},
-    )
+    with pytest.raises(SystemExit) as invalid_command:
+        cli.main([command])
+    assert invalid_command.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
+    help_text = cli.build_parser().format_help()
+    assert "export-demo" not in help_text
+    assert "export-gallery" not in help_text
 
 
 def test_main_reports_os_and_missing_handler_errors(

@@ -67,7 +67,7 @@ assert.match(
 
 const renderedHtml = await response.text();
 // Next metadata keeps public-file URLs root-relative. Rebase those references
-// without changing the shared application layout used by the worker deployment.
+// without changing the shared application layout used by the local server.
 const publicFiles = ["favicon.svg", "og.png"];
 const publicFilePattern = new RegExp(
   `(["'])/(${publicFiles.map((filename) => filename.replace(".", "\\.")).join("|")})\\1`,

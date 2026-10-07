@@ -70,7 +70,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Lint dashboard
         run: pnpm run lint
-      - name: Test root deployment, server rendering, and demo data
-        run: pnpm run test:sites
+      - name: Test local server build, rendering, and replay data
+        run: pnpm run test:server
       - name: Test GitHub Pages export
         run: pnpm run test:pages

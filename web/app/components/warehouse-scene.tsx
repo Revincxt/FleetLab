@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MazeFrame, MazeScenario } from "./maze-model";
 import type { WarehouseRenderer } from "./warehouse-renderer";
+import type { WorkerTrafficFrame } from "./workforce-model";
 
 const cameraIcons = {
   top: "M12 3v8m-3-3 3 3 3-3M3 17l9-4 9 4-9 4-9-4Z",
@@ -19,9 +20,11 @@ function CameraIcon({ name }: { name: keyof typeof cameraIcons }) {
   );
 }
 
-export default function WarehouseScene({ scenario, frame }: {
+export default function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
   scenario: MazeScenario;
   frame: MazeFrame;
+  traffic: WorkerTrafficFrame[];
+  workerMoveSteps: number;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const runtime = useRef<WarehouseRenderer | null>(null);
@@ -54,7 +57,7 @@ export default function WarehouseScene({ scenario, frame }: {
       renderer = new Renderer(element, scenario, latestFrame.current, {
         onZoom: (value) => setZoom(Math.round(value * 100)),
         onUnavailable,
-      });
+      }, traffic, workerMoveSteps);
       runtime.current = renderer;
       setZoom(100);
       setStatus("ready");
@@ -66,7 +69,7 @@ export default function WarehouseScene({ scenario, frame }: {
       runtime.current = null;
       renderer?.dispose();
     };
-  }, [scenario, attempt]);
+  }, [scenario, traffic, workerMoveSteps, attempt]);
 
   return (
     <div className="warehouse-scene" data-scene-ready={ready} data-scene-status={status}>

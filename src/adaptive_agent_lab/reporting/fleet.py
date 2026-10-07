@@ -6,6 +6,7 @@ import argparse
 import json
 from collections import Counter
 from dataclasses import asdict, replace
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -14,11 +15,13 @@ from adaptive_agent_lab.environment.contracts import Action, OrderStatus, Positi
 from adaptive_agent_lab.environment.fleet import FleetEnvironment, FleetStep
 from adaptive_agent_lab.environment.fleet_tasks import add_random_fleet_tasks
 from adaptive_agent_lab.environment.scenario import Scenario
+from adaptive_agent_lab.environment.workforce import WORKER_MOVE_STEPS
 from adaptive_agent_lab.reporting.artifacts import fingerprint, write_json_atomic
 from adaptive_agent_lab.reporting.scenario import scenario_payload
 
 COLORS = ("#007aff", "#aa782e", "#7964b5", "#348b75")
 ORDER_STATE_CODES = ("pending", "available", "picked_up", "delivered", "expired")
+PLAN_MOVE_CODES = {(0, -1): "U", (0, 1): "D", (-1, 0): "L", (1, 0): "R", (0, 0): "."}
 
 
 def compact_fleet_payload(payload: dict[str, object]) -> dict[str, object]:
@@ -68,9 +71,15 @@ def fleet_starts(scenario: Scenario) -> dict[str, Position]:
 
 
 def build_fleet_demo(
-    scenario: Scenario, *, algorithm: str = "coordinated-astar"
+    scenario: Scenario,
+    *,
+    algorithm: str = "coordinated-astar",
+    worker_count: int = 3,
+    worker_seed: int = 17,
 ) -> dict[str, object]:
-    environment = FleetEnvironment(scenario, fleet_starts(scenario))
+    environment = FleetEnvironment(
+        scenario, fleet_starts(scenario), worker_count=worker_count, worker_seed=worker_seed
+    )
     dispatcher = FleetDispatcher(environment, algorithm=algorithm)
     distances: Counter[str] = Counter()
     deliveries: Counter[str] = Counter()
@@ -114,6 +123,7 @@ def build_fleet_demo(
                     "status": status,
                     "carriedOrderId": robot.carried_order_id,
                     "assignedOrderId": assigned,
+                    "plannedMoves": "",
                     "deliveredOrderId": result.delivered.get(key) if result else None,
                     "violations": list(result.violations[key]) if result else [],
                     "distance": distances[key],
@@ -125,6 +135,19 @@ def build_fleet_demo(
         return {
             "time": state.time,
             "vehicles": vehicles,
+            "workers": [
+                {
+                    "id": key,
+                    "position": [worker.position.x, worker.position.y],
+                    "activity": worker.activity,
+                    **(
+                        {"transit": [worker.destination.x, worker.destination.y, worker.progress]}
+                        if worker.destination is not None
+                        else {}
+                    ),
+                }
+                for key, worker in state.workers.items()
+            ],
             "orderStates": {key: status.value for key, status in state.order_status.items()},
             "blocked": [{"x": point.x, "y": point.y} for point in sorted(state.blocked_cells)],
             "completedOrders": sum(
@@ -136,6 +159,18 @@ def build_fleet_demo(
     frames.append(frame(None, {}))
     while not environment.state.terminated:
         requested = dispatcher.actions()
+        # Attach this decision to its input snapshot, not the resulting position.
+        # A compact direction string preserves waits and the solver's real window.
+        for vehicle in cast(list[dict[str, object]], frames[-1]["vehicles"]):
+            key = cast(str, vehicle["id"])
+            robot = environment.state.robots[key]
+            assigned = robot.carried_order_id or dispatcher.assignments.get(key)
+            vehicle["assignedOrderId"] = assigned
+            path = dispatcher.planned_paths[key]
+            vehicle["plannedMoves"] = "".join(
+                PLAN_MOVE_CODES[(end.x - start.x, end.y - start.y)]
+                for start, end in pairwise(path)
+            )
         result = environment.step(requested)
         for key, action in result.actions.items():
             distances[key] += int(action.is_movement)
@@ -150,6 +185,7 @@ def build_fleet_demo(
         "controller": FLEET_ALGORITHMS[algorithm],
         "scenarioFingerprint": fingerprint(scenario.to_dict()),
         "scenario": scenario_payload(scenario),
+        "workforce": {"count": worker_count, "seed": worker_seed, "moveSteps": WORKER_MOVE_STEPS},
         "vehicles": [
             {
                 "id": key,
@@ -216,7 +252,12 @@ def build_fleet_gallery(
             {
                 "caseId": case["caseId"],
                 "label": case["label"],
-                **build_fleet_demo(scenario, algorithm=algorithm),
+                **build_fleet_demo(
+                    scenario,
+                    algorithm=algorithm,
+                    worker_count=config.get("workerCount", 3),
+                    worker_seed=config.get("workerSeed", 17),
+                ),
             }
         )
     if config.get("defaultCaseId") not in ids:

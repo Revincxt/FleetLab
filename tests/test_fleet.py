@@ -228,12 +228,23 @@ def test_checked_in_fleet_is_deterministic_and_replays_every_shared_transition(
         {
             "caseId": case["caseId"],
             "label": case["label"],
-            **build_fleet_demo(source, algorithm=algorithm),
+            **build_fleet_demo(
+                source,
+                algorithm=algorithm,
+                worker_count=config["workerCount"],
+                worker_seed=config["workerSeed"],
+            ),
         }
     )
     assert payload["scenarioFingerprint"] == fingerprint(source.to_dict())
     assert len(payload["vehicles"]) == 4
-    environment = FleetEnvironment(source, fleet_starts(source))
+    assert payload["workforce"] == {"count": 3, "seed": config["workerSeed"], "moveSteps": 3}
+    environment = FleetEnvironment(
+        source,
+        fleet_starts(source),
+        worker_count=config["workerCount"],
+        worker_seed=config["workerSeed"],
+    )
     delivered: Counter[str] = Counter()
     movement: Counter[str] = Counter()
     assert payload["frames"][0]["time"] == 0
@@ -242,6 +253,8 @@ def test_checked_in_fleet_is_deterministic_and_replays_every_shared_transition(
     ]
     for frame in payload["frames"][1:]:
         old_positions = {key: robot.position for key, robot in environment.state.robots.items()}
+        old_people = {key: worker.position for key, worker in environment.state.workers.items()}
+        reserved = environment.worker_reservations
         result = environment.step(
             {vehicle["id"]: Action(vehicle["requestedAction"]) for vehicle in frame["vehicles"]}
         )
@@ -255,9 +268,31 @@ def test_checked_in_fleet_is_deterministic_and_replays_every_shared_transition(
         )
         assert result.state.terminated == frame["terminated"]
         assert len({robot.position for robot in result.state.robots.values()}) == 4
+        assert frame["workers"] == [
+            {
+                "id": key,
+                "position": [worker.position.x, worker.position.y],
+                "activity": worker.activity,
+                **(
+                    {"transit": [worker.destination.x, worker.destination.y, worker.progress]}
+                    if worker.destination is not None
+                    else {}
+                ),
+            }
+            for key, worker in result.state.workers.items()
+        ]
+        positions = {robot.position for robot in result.state.robots.values()}
+        positions.update(worker.position for worker in result.state.workers.values())
+        assert len(positions) == 7
+        for key, worker in result.state.workers.items():
+            assert not worker.reserved_cells & set(old_positions.values())
+            assert worker.position not in old_positions.values()
+            assert worker.position.manhattan_distance(old_people[key]) <= 1
+            assert all(worker.position != old for other, old in old_people.items() if other != key)
         for record in frame["vehicles"]:
             key = record["id"]
             robot = result.state.robots[key]
+            assert robot.position not in reserved
             assert record["position"] == [robot.position.x, robot.position.y]
             assert record["battery"] == robot.battery
             assert record["carriedOrderId"] == robot.carried_order_id

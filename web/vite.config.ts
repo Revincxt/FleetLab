@@ -1,6 +1,5 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import { sites } from "./build/sites-vite-plugin";
 
 const assetBase = process.env.GITHUB_PAGES_BASE_PATH ?? "/";
 
@@ -33,7 +32,6 @@ export default defineConfig(async () => {
       : undefined,
     plugins: [
       vinext(),
-      sites(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: localBindingConfig,
