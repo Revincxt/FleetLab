@@ -78,20 +78,8 @@ Regenerate all three files with the same configuration to keep the runs comparab
 
 </details>
 
-## Development
+## Reference
 
-From `web/`:
-
-```bash
-pnpm lint
-pnpm test:pages
-```
-
-The checks cover documentation assets, scene behavior, replay data, and the GitHub Pages export.
-`pnpm test:server` also checks the local server build. `pnpm build:pages` creates
-`web/dist/pages/` without publishing; pushes to `main` are deployed by the
-[Pages workflow](.github/workflows/pages.yml).
-
-For Python checks, install `python -m pip install -e '.[dev]'`, then run `make check`
-from the repository root. The Python package retains its `adaptive_agent_lab` import
-path and `aal` CLI for scenario, training, and benchmark workflows.
+1. David Silver. [Cooperative Pathfinding](https://ojs.aaai.org/index.php/AIIDE/article/view/18726). AIIDE, 2005. — WHCA*.
+2. Hang Ma et al. [Searching with Consistent Prioritization for Multi-Agent Path Finding](https://ojs.aaai.org/index.php/AAAI/article/view/4758). AAAI, 2019. — Priority-Based Search (PBS).
+3. Jiaoyang Li et al. [Lifelong Multi-Agent Path Finding in Large-Scale Warehouses](https://ojs.aaai.org/index.php/AAAI/article/view/17344). AAAI, 2021. — Rolling-Horizon Collision Resolution (RHCR).
