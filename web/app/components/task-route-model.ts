@@ -18,6 +18,13 @@ export function decodePlannedRoute(start: GridPoint, codes: string): GridPoint[]
 const taskId = (vehicle: VehicleState) => vehicle.carriedOrderId ?? vehicle.assignedOrderId;
 const point = (vehicle: VehicleState) => ({ x: vehicle.position[0], y: vehicle.position[1] });
 
+/** Every vehicle's task route is visible, independently of the inspector selection. */
+export function currentTaskRoutes(replay: FleetReplay, time: number): Record<string, TaskRoute | null> {
+  return Object.fromEntries((replay.frames[time]?.vehicles ?? []).map((vehicle, index) =>
+    [vehicle.id, currentTaskRoute(replay, time, index)]
+  ));
+}
+
 /** Bound history to the current continuous assignment, through pickup and delivery. */
 export function currentTaskRoute(replay: FleetReplay, time: number, vehicleIndex: number): TaskRoute | null {
   const frame = replay.frames[time], vehicle = frame?.vehicles[vehicleIndex];

@@ -4,8 +4,6 @@
   "workerCount": 3,
   "workerSeed": 17,
   "taskSeed": 42,
-  "taskSpacing": 1,
-  "uniqueTaskPoints": false,
   "horizon": 7200,
   "cases": [
     {"caseId": "rack-maze", "label": "Rack maze", "scenario": "../scenarios/medium/maze-warehouse.json"},

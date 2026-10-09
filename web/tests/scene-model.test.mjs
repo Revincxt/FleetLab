@@ -9,7 +9,7 @@ import { chargingStationState, parseFleetGallery, displayedOrderState, isVehicle
 import { fleetAlgorithms, fleetAlgorithm } from "../app/components/fleet-algorithms.ts";
 import { buildForkliftPayload, LOADED_FORK_LIFT } from "../app/components/forklift-payload.ts";
 import { buildIndustrialForklift } from "../app/components/factory-forklift.ts";
-import { currentTaskRoute, decodePlannedRoute } from "../app/components/task-route-model.ts";
+import { currentTaskRoute, currentTaskRoutes, decodePlannedRoute } from "../app/components/task-route-model.ts";
 import { taskAreaPath, taskHistory, taskStepPath, chartCeiling } from "../app/components/task-progress-model.ts";
 import { batteryColors, batteryToneHints, eventLabels, fleetStatusTone, gridCellHint, orderLabels, simulationStepHint, statusColors, vehicleBatteryTone, vehicleStatusHint, vehicleStatusLabel, vehicleStatusTone } from "../app/components/fleet-terminology.ts";
 
@@ -474,6 +474,48 @@ test("current task routes use only this assignment's history and the recorded pl
   const prefix = { frames: replay.frames.slice(0, 3) };
   assert.deepEqual(currentTaskRoute(prefix, 2, 0), route, "Future frames never determine a plan");
   assert.throws(() => decodePlannedRoute({x:0,y:0}, "RX"), /Invalid/);
+});
+
+test("fleet routes stay keyed by vehicle and clear completed tasks independently", () => {
+  const vehicle = (id, x, task, moves = "R", carrying = false) => ({ id, position: [x, 1], assignedOrderId: task, carriedOrderId: carrying ? task : null, plannedMoves: moves });
+  const replay = { frames: [
+    { vehicles: [vehicle("one", 0, "old"), vehicle("two", 4, "b"), vehicle("three", 8, null), vehicle("four", 12, "expired")], orderStates: { old: "available", a: "pending", b: "available", c: "pending", expired: "expired" } },
+    { vehicles: [vehicle("one", 1, "a"), vehicle("two", 5, "b", "DD", true), vehicle("three", 8, null), vehicle("four", 12, null)], orderStates: { old: "delivered", a: "available", b: "picked_up", c: "pending", expired: "expired" } },
+    { vehicles: [vehicle("one", 2, "a"), vehicle("two", 5, "b", "L", true), vehicle("three", 8, "c"), vehicle("four", 12, null)], orderStates: { old: "delivered", a: "delivered", b: "picked_up", c: "available", expired: "expired" } },
+  ] };
+  const before = currentTaskRoutes(replay, 1), after = currentTaskRoutes(replay, 2);
+  assert.deepEqual(Object.keys(before), ["one", "two", "three", "four"]);
+  assert.deepEqual(before.one.completed, [{ x: 1, y: 1 }], "Switching a task clears only that forklift's history");
+  assert.deepEqual(before.two.completed, [{ x: 4, y: 1 }, { x: 5, y: 1 }]);
+  assert.deepEqual(before.two.planned, [{ x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }]);
+  assert.equal(before.three, null);
+  assert.equal(before.four, null);
+  assert.equal(after.one, null, "A completed task leaves no stale path, even if still assigned");
+  assert.equal(after.two.orderId, "b", "Another forklift's route remains visible");
+  assert.equal(after.three.orderId, "c");
+  assert.deepEqual(currentTaskRoutes({ frames: replay.frames.slice(0, 2) }, 1), before, "No future frames are used");
+  assert.equal(currentTaskRoutes(replay, 0).one.orderId, "old", "Rewind restores each assignment");
+  assert.deepEqual(currentTaskRoutes(replay, 9), {});
+});
+
+test("all twelve replays expose all four current task routes without a selected vehicle", async () => {
+  for (const algorithm of fleetAlgorithms) {
+    const replays = parseFleetGallery(JSON.parse(await readFile(new URL(`../public/${algorithm.file}`, import.meta.url), "utf8")));
+    for (const replay of replays.cases) {
+      for (const time of [0, 26, 94, Math.floor(replay.frames.length / 2), replay.frames.length - 1]) {
+        const routes = currentTaskRoutes(replay, time);
+        assert.deepEqual(Object.keys(routes), replay.vehicles.map(vehicle => vehicle.id));
+        for (const [index, vehicle] of replay.frames[time].vehicles.entries()) {
+          assert.deepEqual(routes[vehicle.id], currentTaskRoute(replay, time, index));
+          if (routes[vehicle.id]) {
+            assert.deepEqual(routes[vehicle.id].completed.at(-1), { x: vehicle.position[0], y: vehicle.position[1] });
+            assert.deepEqual(routes[vehicle.id].planned[0], routes[vehicle.id].completed.at(-1));
+          }
+        }
+      }
+      assert.ok(Object.values(currentTaskRoutes(replay, replay.frames.length - 1)).every(route => route === null));
+    }
+  }
 });
 
 test("remaining route dashes stay anchored while the solid boundary advances", () => {

@@ -31,14 +31,9 @@ class SeedBook:
 
     root: int
 
-    def for_scenario(self, scenario_index: int) -> int:
-        return derive_seed(self.root, "scenario", scenario_index)
-
     def for_events(self, scenario_index: int) -> int:
         return derive_seed(self.root, "events", scenario_index)
 
     def for_agent(self, agent_name: str, replicate: int = 0) -> int:
         return derive_seed(self.root, "agent", agent_name, replicate)
 
-    def for_replay(self, agent_name: str, replicate: int = 0) -> int:
-        return derive_seed(self.root, "replay", agent_name, replicate)

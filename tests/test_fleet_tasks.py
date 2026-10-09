@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 
@@ -23,7 +22,7 @@ def load_layout(name: str = "maze-warehouse") -> Scenario:
 
 @pytest.mark.parametrize("layout", LAYOUTS)
 @pytest.mark.parametrize("seed", [0, 42, 43])
-def test_random_tasks_preserve_layout_and_spread_unique_reachable_points(
+def test_random_tasks_preserve_layout_and_reachable_points(
     layout: str, seed: int
 ) -> None:
     base = load_layout(layout)
@@ -44,18 +43,11 @@ def test_random_tasks_preserve_layout_and_spread_unique_reachable_points(
     }
     assert Scenario.from_json(expanded.to_json()) == expanded
     points = [point for order in expanded.orders for point in (order.pickup, order.dropoff)]
-    assert len(set(points)) == 60
-    zones = Counter(
-        (point.x * 4 // base.map.width, point.y * 3 // base.map.height) for point in points
-    )
-    assert len(zones) == 12
-    assert min(zones.values()) >= 3
     closed = frozenset(event.position for event in base.events if event.position is not None)
     reserved = {base.initial_robot.position} | base.map.charging_stations | closed
     for point in points[20:]:
         assert point not in reserved
         assert base.map.is_traversable(point)
-        assert all(point == other or point.manhattan_distance(other) >= 2 for other in points)
     for order in expanded.orders[10:]:
         route = astar_path(base.map, order.pickup, order.dropoff, blocked_cells=closed)
         assert route.reached and 6 <= route.cost <= 36
@@ -81,7 +73,7 @@ def test_225_tasks_sample_with_replacement_and_release_progressively(
     layout: str, seed: int
 ) -> None:
     base = replace(load_layout(layout), horizon=7200)
-    expanded = add_random_fleet_tasks(base, total=225, seed=seed, unique_points=False)
+    expanded = add_random_fleet_tasks(base, total=225, seed=seed)
     assert len(expanded.orders) == len({order.order_id for order in expanded.orders}) == 225
     assert expanded.orders[:10] == base.orders
     assert expanded.map == base.map
@@ -99,53 +91,7 @@ def test_225_tasks_sample_with_replacement_and_release_progressively(
     # overlap count or unique-point quota is imposed by the generator.
     points = [point for order in expanded.orders for point in (order.pickup, order.dropoff)]
     assert 100 < len(set(points)) < len(points)
-    assert expanded == add_random_fleet_tasks(base, total=225, seed=seed, unique_points=False)
-    assert expanded == add_random_fleet_tasks(
-        base, total=225, seed=seed, min_spacing=100, unique_points=False
-    ), "Natural sampling ignores inter-task spacing and de-duplication"
-
-
-def test_invalid_unique_mode_is_rejected() -> None:
-    with pytest.raises(ValueError, match="boolean"):
-        add_random_fleet_tasks(load_layout(), total=30, seed=42, unique_points="false")  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize("layout", LAYOUTS)
-@pytest.mark.parametrize("seed", [42, 43])
-@pytest.mark.parametrize("task_count", [150])
-def test_large_gallery_has_unique_legal_endpoints(layout: str, seed: int, task_count: int) -> None:
-    base = load_layout(layout)
-    extended = replace(base, horizon=4800)
-    expanded = add_random_fleet_tasks(extended, total=task_count, seed=seed, min_spacing=1)
-    assert len(expanded.orders) == task_count
-    assert expanded.orders[:10] == base.orders
-    assert expanded.map == base.map
-    assert expanded.initial_robot == base.initial_robot
-    assert base.horizon == 960
-    assert expanded.horizon == 4800
-    assert len({order.order_id for order in expanded.orders}) == task_count
-    points = [point for order in expanded.orders for point in (order.pickup, order.dropoff)]
-    assert len(set(points)) == task_count * 2
-    reserved = (
-        base.map.charging_stations
-        | {base.initial_robot.position}
-        | {event.position for event in base.events if event.position is not None}
-    )
-    assert all(base.map.is_traversable(point) for point in points)
-    assert all(point not in reserved for point in points[20:])
-    assert sum(order.release_time == 0 for order in expanded.orders) == 4
-    assert all(0 <= order.release_time < order.deadline < 4800 for order in expanded.orders)
-    assert len({(point.x * 4 // 32, point.y * 3 // 24) for point in points}) == 12
-    assert Scenario.from_json(expanded.to_json()) == expanded
-    assert {event for event in expanded.events if event.kind is not EventKind.ORDER_ARRIVAL} == {
-        event for event in base.events if event.kind is not EventKind.ORDER_ARRIVAL
-    }
-
-
-@pytest.mark.parametrize("spacing", [0, -1, True, 1.5])
-def test_invalid_station_spacing_is_rejected(spacing: int) -> None:
-    with pytest.raises(ValueError, match="spacing"):
-        add_random_fleet_tasks(load_layout(), total=30, seed=42, min_spacing=spacing)
+    assert expanded == add_random_fleet_tasks(base, total=225, seed=seed)
 
 
 @pytest.mark.parametrize(
@@ -156,9 +102,9 @@ def test_invalid_task_counts_and_seeds_are_rejected(total: int, seed: int) -> No
         add_random_fleet_tasks(load_layout(), total=total, seed=seed)
 
 
-def test_impossible_task_density_or_battery_fails_without_partial_changes() -> None:
+def test_insufficient_battery_fails_without_partial_changes() -> None:
     base = load_layout()
     low_battery = replace(base, initial_robot=RobotState(Position(1, 22), 1), battery_capacity=1)
-    with pytest.raises(ValueError, match="not enough"):
+    with pytest.raises(ValueError, match="battery capacity"):
         add_random_fleet_tasks(low_battery, total=30, seed=42)
     assert len(low_battery.orders) == 10

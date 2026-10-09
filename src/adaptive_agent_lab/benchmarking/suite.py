@@ -92,16 +92,6 @@ class BenchmarkCondition:
             f"{self.order_load}/tape-{self.tape_index:04d}"
         )
 
-    @property
-    def pairing_key(self) -> tuple[str, str, str, str, int]:
-        return (
-            self.block_id,
-            self.map_scale,
-            self.dynamics,
-            self.order_load,
-            self.tape_index,
-        )
-
     def to_dict(self) -> dict[str, object]:
         return {
             "block_id": self.block_id,
@@ -287,22 +277,6 @@ class BenchmarkResult:
     summary: Mapping[str, object]
     artifact_names: Mapping[str, str]
 
-    @property
-    def episode_records(self) -> tuple[BenchmarkEpisodeRecord, ...]:
-        return self.episodes
-
-    @property
-    def records(self) -> tuple[BenchmarkEpisodeRecord, ...]:
-        return self.episodes
-
-    @property
-    def agent_summaries(self) -> Mapping[str, object]:
-        return cast(Mapping[str, object], self.summary["agents"])
-
-    @property
-    def paired_differences(self) -> Mapping[str, object]:
-        return cast(Mapping[str, object], self.summary["paired_differences"])
-
     def write_artifacts(self, output_directory: str | Path) -> Mapping[str, Path]:
         return write_benchmark_artifacts(self, output_directory)
 
@@ -325,14 +299,6 @@ class BenchmarkSuite:
         block_ids: Iterable[str] | None = None,
     ) -> tuple[BenchmarkCondition, ...]:
         return self.config.conditions(block_ids=block_ids)
-
-    def scenario_for(
-        self,
-        condition: BenchmarkCondition,
-        *,
-        root_seed: int | None = None,
-    ) -> Scenario:
-        return self.config.make_scenario(condition, root_seed=root_seed)
 
     def run(
         self,

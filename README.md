@@ -20,7 +20,8 @@ FleetLab simulates warehouse fleets sharing tasks, navigating traffic, and recha
 A Python simulator generates reproducible runs; the 3D web viewer lets you explore them.
 
 - **Factory floor** — Four layouts with working forklifts, visible cargo, and three patrolling workers that planners avoid.
-- **Task routes** — Inspect the selected forklift's current task: solid lines show travel so far, dashed lines show its recorded plan. Finished task markers disappear.
+- **Task routes** — All forklifts show their current task routes in matching colors: solid lines show travel so far, dashed lines show their recorded plans. Finished task markers disappear.
+- **Forklift updates** — Brief speech bubbles signal route changes, successful pickups, and completed deliveries.
 - **Operations** — Seeded tasks arrive progressively. Track the fleet, charging stations, and task queue with playback and timeline controls.
 
 ## Routing algorithms

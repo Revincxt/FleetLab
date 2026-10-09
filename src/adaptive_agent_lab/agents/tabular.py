@@ -107,12 +107,6 @@ class QLearningAgent(Agent):
         return self._epsilon
 
     @property
-    def epsilon_current(self) -> float:
-        """Explicit alias useful in metric and configuration reports."""
-
-        return self._epsilon
-
-    @property
     def q_table(self) -> Mapping[TabularState, QValues]:
         """Return an immutable defensive view of learned action values."""
 

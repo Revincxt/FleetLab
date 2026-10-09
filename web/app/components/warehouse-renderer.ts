@@ -8,6 +8,7 @@ import { buildForkliftPayload, LOADED_FORK_LIFT } from "./forklift-payload";
 import { buildIndustrialForklift } from "./factory-forklift";
 import { buildWorkerTracks, interpolateWorker, type WorkerPose, type WorkerTrack, type WorkerTrafficFrame } from "./workforce-model";
 import { poseWorker, workerFactory, type WorkerVisual } from "./factory-workers";
+import { ForkliftNotices } from "./forklift-notices";
 
 type RendererCallbacks = {
   onZoom: (zoom: number) => void;
@@ -29,14 +30,32 @@ type TaskMarkerVisual = { group: THREE.Group; ink: THREE.MeshBasicMaterial; labe
 type RouteVisual = {
   mesh: THREE.InstancedMesh;
   joints: THREE.InstancedMesh;
+  outline: THREE.InstancedMesh;
+  outlineJoints: THREE.InstancedMesh;
   material: THREE.MeshBasicMaterial;
   dashed: boolean;
+  offset: THREE.Vector3;
 };
 type TrailTip = {
   group: THREE.Group;
   body: THREE.Mesh;
   startCap: THREE.Mesh;
   endCap: THREE.Mesh;
+  outlineBody: THREE.Mesh;
+  outlineStartCap: THREE.Mesh;
+  outlineEndCap: THREE.Mesh;
+};
+type VehicleRouteVisual = {
+  solid: RouteVisual;
+  planned: RouteVisual;
+  plannedLeadMesh: THREE.InstancedMesh;
+  plannedLeadOutline: THREE.InstancedMesh;
+  plannedLead: { robot: RobotVisual; edge: RouteSegment } | null;
+  trailTip: TrailTip;
+  trailRobot: RobotVisual | null;
+  trailOrigin: THREE.Vector3;
+  trailEnd: THREE.Vector3;
+  orderId: string | null;
 };
 type WorkerPresentation = {
   visual: WorkerVisual;
@@ -44,6 +63,8 @@ type WorkerPresentation = {
   pose: WorkerPose;
   motion: { from: WorkerPose; to: WorkerPose; startedAt: number; duration: number } | null;
 };
+
+const ROUTE_ELEVATION = 0.105;
 
 /** Demand-rendered replay of forklifts and cell-occupying workers. */
 export class WarehouseRenderer {
@@ -56,19 +77,13 @@ export class WarehouseRenderer {
   private readonly textures = new Set<THREE.Texture>();
   private readonly closures = new Map<string, THREE.Group>();
   private readonly orderMarkers: TaskMarkerVisual[][] = [];
-  private readonly route: RouteVisual;
-  private readonly plannedRoute: RouteVisual;
-  private readonly plannedLeadMesh: THREE.InstancedMesh;
-  private plannedLead: { robot: RobotVisual; edge: RouteSegment } | null = null;
+  private readonly routes = new Map<string, VehicleRouteVisual>();
   private readonly leadTransform = new THREE.Object3D();
   private readonly robots = new Map<string, RobotVisual>();
   private readonly workers: WorkerPresentation[] = [];
-  private trailTip: TrailTip | null = null;
-  private trailRobot: RobotVisual | null = null;
-  private readonly trailOrigin = new THREE.Vector3();
-  private readonly trailEnd = new THREE.Vector3();
   private readonly trailDirection = new THREE.Vector3();
   private readonly up = new THREE.Vector3(0, 1, 0);
+  private notices: ForkliftNotices | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -96,7 +111,7 @@ export class WarehouseRenderer {
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1;
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
       this.renderer.domElement.tabIndex = 0;
       this.renderer.domElement.title = "Drag to orbit · Scroll to zoom";
       this.renderer.domElement.setAttribute("role", "img");
@@ -127,15 +142,8 @@ export class WarehouseRenderer {
       });
       this.renderer.domElement.dataset.workerCount = String(this.workers.length);
       this.renderer.domElement.dataset.workerMode = "cell-reserved";
-      this.route = this.makeRoute();
-      this.plannedRoute = this.makeRoute(true);
-      this.plannedLeadMesh = new THREE.InstancedMesh(this.plannedRoute.mesh.geometry, this.plannedRoute.material, 3);
-      this.plannedLeadMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.plannedLeadMesh.frustumCulled = false;
-      this.plannedLeadMesh.count = 0;
-      this.scene.add(this.plannedLeadMesh);
-      this.trailTip = this.makeTrailTip(this.route);
       this.host.append(this.renderer.domElement);
+      this.notices = new ForkliftNotices(this.host, this.invalidate, scenario.orders);
       this.resizeObserver = new ResizeObserver(this.resize);
       this.resizeObserver.observe(this.host);
       this.intersectionObserver = new IntersectionObserver(([entry]) => {
@@ -297,11 +305,14 @@ export class WarehouseRenderer {
     return { group, chassis, tint, badge, payload, lift, wheels, color, target: null, motion: null };
   }
 
-  private makeRoute(dashed = false): RouteVisual {
-    const material = this.material(new THREE.MeshBasicMaterial({ color: 0xc9ee96, transparent: true, opacity: dashed ? 0.85 : 0.65, depthWrite: false, toneMapped: false }));
+  private makeRoute(dashed = false, lane = 0): RouteVisual {
+    const radius = dashed ? 0.041 : 0.038;
+    // Muted strokes stay legible over concrete with a narrow, softer dark border.
+    const material = this.material(new THREE.MeshBasicMaterial({ color: 0xc9ee96, transparent: true, opacity: 1, depthWrite: false, toneMapped: false }));
+    const outlineMaterial = this.material(new THREE.MeshBasicMaterial({ color: 0x26343b, transparent: true, opacity: 0.76, depthWrite: false, toneMapped: false }));
     const capacity = routeCapacity(this.scenario.width, this.scenario.height);
     const mesh = new THREE.InstancedMesh(
-      this.geometry(new THREE.CylinderGeometry(0.022, 0.022, 1, 8)),
+      this.geometry(new THREE.CylinderGeometry(radius, radius, 1, 8)),
       material,
       capacity.segments * (dashed ? 3 : 1),
     );
@@ -309,14 +320,28 @@ export class WarehouseRenderer {
     mesh.frustumCulled = false;
     mesh.count = 0;
     const joints = new THREE.InstancedMesh(
-      this.geometry(new THREE.SphereGeometry(0.022, 8, 6)), material,
+      this.geometry(new THREE.SphereGeometry(radius, 8, 6)), material,
       dashed ? 1 : capacity.joints,
     );
     joints.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     joints.frustumCulled = false;
     joints.count = 0;
-    this.scene.add(mesh, joints);
-    return { mesh, joints, material, dashed };
+    const outline = new THREE.InstancedMesh(
+      this.geometry(new THREE.CylinderGeometry(radius + 0.017, radius + 0.017, 1, 8)),
+      outlineMaterial, mesh.instanceMatrix.count,
+    );
+    const outlineJoints = new THREE.InstancedMesh(
+      this.geometry(new THREE.SphereGeometry(radius + 0.017, 8, 6)), outlineMaterial, joints.instanceMatrix.count,
+    );
+    for (const stroke of [outline, outlineJoints]) {
+      stroke.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      stroke.frustumCulled = false;
+      stroke.count = 0;
+      stroke.renderOrder = 10;
+    }
+    mesh.renderOrder = joints.renderOrder = 11;
+    this.scene.add(outline, outlineJoints, mesh, joints);
+    return { mesh, joints, outline, outlineJoints, material, dashed, offset: new THREE.Vector3(lane, 0, lane) };
   }
 
   private makeTrailTip(route: RouteVisual): TrailTip {
@@ -324,10 +349,46 @@ export class WarehouseRenderer {
     const body = new THREE.Mesh(route.mesh.geometry, route.material);
     const startCap = new THREE.Mesh(route.joints.geometry, route.material);
     const endCap = new THREE.Mesh(route.joints.geometry, route.material);
-    group.add(body, startCap, endCap);
+    const outlineBody = new THREE.Mesh(route.outline.geometry, route.outline.material);
+    const outlineStartCap = new THREE.Mesh(route.outlineJoints.geometry, route.outlineJoints.material);
+    const outlineEndCap = new THREE.Mesh(route.outlineJoints.geometry, route.outlineJoints.material);
+    for (const stroke of [body, startCap, endCap]) stroke.renderOrder = 11;
+    for (const stroke of [outlineBody, outlineStartCap, outlineEndCap]) stroke.renderOrder = 10;
+    group.add(outlineBody, outlineStartCap, outlineEndCap, body, startCap, endCap);
     group.visible = false;
     this.scene.add(group);
-    return { group, body, startCap, endCap };
+    return { group, body, startCap, endCap, outlineBody, outlineStartCap, outlineEndCap };
+  }
+
+  private makeVehicleRoute(lane: number): VehicleRouteVisual {
+    const solid = this.makeRoute(false, lane);
+    const planned = this.makeRoute(true, lane);
+    const plannedLeadMesh = new THREE.InstancedMesh(planned.mesh.geometry, planned.material, 3);
+    plannedLeadMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    plannedLeadMesh.frustumCulled = false;
+    plannedLeadMesh.count = 0;
+    plannedLeadMesh.renderOrder = 11;
+    const plannedLeadOutline = new THREE.InstancedMesh(planned.outline.geometry, planned.outline.material, 3);
+    plannedLeadOutline.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    plannedLeadOutline.frustumCulled = false;
+    plannedLeadOutline.count = 0;
+    plannedLeadOutline.renderOrder = 10;
+    this.scene.add(plannedLeadOutline, plannedLeadMesh);
+    return {
+      solid, planned, plannedLeadMesh, plannedLeadOutline, plannedLead: null,
+      trailTip: this.makeTrailTip(solid), trailRobot: null,
+      trailOrigin: new THREE.Vector3(), trailEnd: new THREE.Vector3(), orderId: null,
+    };
+  }
+
+  private clearVehicleRoute(route: VehicleRouteVisual) {
+    route.orderId = null;
+    route.solid.mesh.count = route.solid.joints.count = 0;
+    route.planned.mesh.count = route.planned.joints.count = route.plannedLeadMesh.count = 0;
+    route.solid.outline.count = route.solid.outlineJoints.count = 0;
+    route.planned.outline.count = route.planned.outlineJoints.count = route.plannedLeadOutline.count = 0;
+    route.trailRobot = route.plannedLead = null;
+    route.trailTip.group.visible = false;
   }
 
   private updateRoute(route: RouteVisual, segments: RouteSegment[], color: string, elevation: number) {
@@ -335,31 +396,35 @@ export class WarehouseRenderer {
     const transform = new THREE.Object3D();
     const joints = new Map<string, GridPoint>();
     segments.forEach(({ from, to }, index) => {
-      const start = this.world(from, elevation);
-      const end = this.world(to, elevation);
+      const start = this.world(from, elevation).add(route.offset);
+      const end = this.world(to, elevation).add(route.offset);
       const direction = end.clone().sub(start);
       transform.position.copy(start).add(end).multiplyScalar(0.5);
       transform.quaternion.setFromUnitVectors(this.up, direction.clone().normalize());
       transform.scale.set(1, direction.length(), 1);
       transform.updateMatrix();
       route.mesh.setMatrixAt(index, transform.matrix);
+      route.outline.setMatrixAt(index, transform.matrix);
       if (!route.dashed) {
         joints.set(`${from.x}:${from.y}`, from);
         joints.set(`${to.x}:${to.y}`, to);
       }
     });
-    route.mesh.count = segments.length;
+    route.mesh.count = route.outline.count = segments.length;
     route.mesh.instanceMatrix.needsUpdate = true;
+    route.outline.instanceMatrix.needsUpdate = true;
     transform.quaternion.identity();
     transform.scale.setScalar(1);
     let index = 0;
     for (const point of joints.values()) {
-      transform.position.copy(this.world(point, elevation));
+      transform.position.copy(this.world(point, elevation)).add(route.offset);
       transform.updateMatrix();
-      route.joints.setMatrixAt(index++, transform.matrix);
+      route.joints.setMatrixAt(index, transform.matrix);
+      route.outlineJoints.setMatrixAt(index++, transform.matrix);
     }
-    route.joints.count = index;
+    route.joints.count = route.outlineJoints.count = index;
     route.joints.instanceMatrix.needsUpdate = true;
+    route.outlineJoints.instanceMatrix.needsUpdate = true;
     route.material.color.set(color);
   }
 
@@ -416,44 +481,57 @@ export class WarehouseRenderer {
     if (sample.complete) visual.motion = null;
   }
 
-  private updateTrailTip() {
-    const tip = this.trailTip;
-    if (!tip) return;
-    tip.group.visible = Boolean(this.trailRobot);
-    if (!this.trailRobot) return;
-    this.trailEnd.copy(this.trailRobot.group.position);
-    this.trailEnd.y = this.trailOrigin.y;
-    this.trailDirection.copy(this.trailEnd).sub(this.trailOrigin);
+  private updateTrailTip(route: VehicleRouteVisual) {
+    const { trailTip: tip, trailRobot: robot, trailEnd: end, trailOrigin: origin } = route;
+    tip.group.visible = Boolean(robot);
+    if (!robot) return;
+    end.copy(robot.group.position);
+    end.y = origin.y;
+    this.trailDirection.copy(end).sub(origin);
     const length = this.trailDirection.length();
     tip.body.visible = length > 0.0001;
+    tip.outlineBody.visible = tip.body.visible;
     if (tip.body.visible) {
-      tip.body.position.copy(this.trailOrigin).add(this.trailEnd).multiplyScalar(0.5);
+      tip.body.position.copy(origin).add(end).multiplyScalar(0.5);
       tip.body.quaternion.setFromUnitVectors(this.up, this.trailDirection.normalize());
       tip.body.scale.set(1, length, 1);
+      tip.outlineBody.position.copy(tip.body.position);
+      tip.outlineBody.quaternion.copy(tip.body.quaternion);
+      tip.outlineBody.scale.copy(tip.body.scale);
     }
-    tip.startCap.position.copy(this.trailOrigin);
-    tip.endCap.position.copy(this.trailEnd);
+    tip.startCap.position.copy(origin);
+    tip.endCap.position.copy(end);
+    tip.outlineStartCap.position.copy(origin);
+    tip.outlineEndCap.position.copy(end);
   }
 
-  private updatePlannedLead() {
-    const lead = this.plannedLead;
-    this.plannedLeadMesh.count = 0;
+  private updatePlannedLead(route: VehicleRouteVisual) {
+    const lead = route.plannedLead;
+    route.plannedLeadMesh.count = route.plannedLeadOutline.count = 0;
     if (!lead) return;
     const from = this.world(lead.edge.from);
     const progress = Math.min(1, from.distanceTo(lead.robot.group.position));
     const segments = dashedRouteSegments([lead.edge], progress);
     const transform = this.leadTransform;
     segments.forEach((segment, index) => {
-      const start = this.world(segment.from, 0.075), end = this.world(segment.to, 0.075);
+      const start = this.world(segment.from, ROUTE_ELEVATION).add(route.planned.offset);
+      const end = this.world(segment.to, ROUTE_ELEVATION).add(route.planned.offset);
+      // The first remaining dash joins the real interpolated forklift position.
+      const clippedPoint = this.world(segment.from);
+      if (clippedPoint.distanceTo(lead.robot.group.position) < 0.0001) {
+        start.copy(lead.robot.group.position); start.y = ROUTE_ELEVATION;
+      }
       const direction = end.clone().sub(start);
       transform.position.copy(start).add(end).multiplyScalar(0.5);
       transform.quaternion.setFromUnitVectors(this.up, direction.clone().normalize());
       transform.scale.set(1, direction.length(), 1);
       transform.updateMatrix();
-      this.plannedLeadMesh.setMatrixAt(index, transform.matrix);
+      route.plannedLeadMesh.setMatrixAt(index, transform.matrix);
+      route.plannedLeadOutline.setMatrixAt(index, transform.matrix);
     });
-    this.plannedLeadMesh.count = segments.length;
-    this.plannedLeadMesh.instanceMatrix.needsUpdate = true;
+    route.plannedLeadMesh.count = route.plannedLeadOutline.count = segments.length;
+    route.plannedLeadMesh.instanceMatrix.needsUpdate = true;
+    route.plannedLeadOutline.instanceMatrix.needsUpdate = true;
   }
 
   private updateWorkers(frame: MazeFrame, now: number) {
@@ -527,12 +605,16 @@ export class WarehouseRenderer {
   update(frame: MazeFrame) {
     if (this.disposed) return;
     const now = performance.now();
+    this.notices?.step(frame.time, frame.notices, now);
     const fleet = frame.fleet;
     const activeIds = new Set(fleet.map((robot) => robot.id));
     this.robots.forEach((visual, id) => {
       if (!activeIds.has(id)) { visual.group.visible = false; visual.motion = null; }
     });
-    fleet.forEach((robot) => {
+    this.routes.forEach((route, id) => {
+      if (!activeIds.has(id)) this.clearVehicleRoute(route);
+    });
+    fleet.forEach((robot, index) => {
       let visual = this.robots.get(robot.id);
       if (!visual) {
         visual = this.makeRobot(robot.label ?? robot.id, robot.color);
@@ -540,19 +622,26 @@ export class WarehouseRenderer {
       }
       this.moveRobot(visual, robot, robot.label ?? robot.id, frame, now);
       visual.badge.scale.setScalar(robot.id === frame.primary.id ? 0.8 : 0.68);
+      let route = this.routes.get(robot.id);
+      if (!route) {
+        // Stable display lanes separate shared edges, within the original grid cells.
+        route = this.makeVehicleRoute((index - (fleet.length - 1) / 2) * 0.13);
+        this.routes.set(robot.id, route);
+      }
+      const taskRoute = frame.routes[robot.id];
+      if (!taskRoute) { this.clearVehicleRoute(route); return; }
+      route.orderId = taskRoute.orderId;
+      const trail = progressiveRoute(taskRoute.completed, Boolean(visual.motion));
+      this.updateRoute(route.solid, trail.segments, robot.color, ROUTE_ELEVATION);
+      route.trailRobot = visual;
+      route.trailOrigin.copy(this.world(trail.tip?.from ?? taskRoute.completed.at(-1)!, ROUTE_ELEVATION)).add(route.solid.offset);
+      this.updateRoute(route.planned, routeSegments(taskRoute.planned), robot.color, ROUTE_ELEVATION);
+      const last = taskRoute.completed.at(-2), next = taskRoute.completed.at(-1), motion = visual.motion;
+      route.plannedLead = motion && last && next && last.x === motion.from.x && last.y === motion.from.y && next.x === motion.to.x && next.y === motion.to.y
+        ? { robot: visual, edge: { from: last, to: next } } : null;
+      this.updateTrailTip(route);
+      this.updatePlannedLead(route);
     });
-    const primary = this.robots.get(frame.primary.id);
-    const taskRoute = frame.primaryRoute;
-    const trail = progressiveRoute(taskRoute?.completed ?? [], Boolean(primary?.motion));
-    this.updateRoute(this.route, trail.segments, frame.primary.color, 0.06);
-    this.trailRobot = trail.tip && primary ? primary : null;
-    if (trail.tip) this.trailOrigin.copy(this.world(trail.tip.from, 0.06));
-    this.updateRoute(this.plannedRoute, routeSegments(taskRoute?.planned ?? []), frame.primary.color, 0.075);
-    const last = taskRoute?.completed.at(-2), next = taskRoute?.completed.at(-1), motion = primary?.motion;
-    this.plannedLead = primary && motion && last && next && last.x === motion.from.x && last.y === motion.from.y && next.x === motion.to.x && next.y === motion.to.y
-      ? { robot: primary, edge: { from: last, to: next } } : null;
-    this.updateTrailTip();
-    this.updatePlannedLead();
     this.closures.forEach((group) => { group.visible = false; });
     frame.blocked.forEach((point) => {
       const key = `${point.x}:${point.y}`;
@@ -591,12 +680,10 @@ export class WarehouseRenderer {
     canvas.dataset.vehiclePositions = JSON.stringify(fleet.map(({ id, position }) => ({ id, ...position })));
     canvas.dataset.carryingCount = String(fleet.filter((robot) => robot.carrying).length);
     canvas.dataset.highlightedOrder = frame.highlightedOrderId ?? "";
-    canvas.dataset.routeTask = taskRoute?.orderId ?? "";
-    canvas.dataset.routeSolidEdges = String(trail.segments.length);
-    canvas.dataset.routePlannedEdges = String(routeSegments(taskRoute?.planned ?? []).length);
+    canvas.dataset.routeScope = "fleet";
     canvas.dataset.routeSource = "recorded-plan";
     this.updateWorkers(frame, now);
-    canvas.setAttribute("aria-description", "Solid lines show travel within the selected forklift's current task; dashed lines show its remaining recorded plan. Windowed plans update as the replay advances. Workers occupy grid cells reserved by the forklift planners.");
+    canvas.setAttribute("aria-description", "Each forklift's color identifies its current task route. Solid lines show completed travel; dashed lines show the remaining recorded plan. All fleet routes stay visible regardless of selection. Windowed plans update as the replay advances. Workers occupy grid cells reserved by the forklift planners.");
     this.previous = frame;
     this.invalidate();
   }
@@ -704,10 +791,19 @@ export class WarehouseRenderer {
       this.advanceRobot(robot, now);
       moving ||= Boolean(robot.motion);
     }
-    this.updateTrailTip();
-    this.updatePlannedLead();
+    for (const route of this.routes.values()) {
+      this.updateTrailTip(route);
+      this.updatePlannedLead(route);
+    }
     moving = this.advanceWorkers(now) || moving;
     this.renderer.render(this.scene, this.camera);
+    this.notices?.draw(now, [...this.robots].flatMap(([vehicleId, robot]) => {
+      if (!robot.group.visible) return [];
+      const point = robot.group.position.clone().add(new THREE.Vector3(0, 1.65, 0)).project(this.camera);
+      if (Math.abs(point.x) > 1 || Math.abs(point.y) > 1 || Math.abs(point.z) > 1) return [];
+      return [{ vehicleId, label: this.previous?.fleet.find(item => item.id === vehicleId)?.label ?? vehicleId,
+        color: robot.color, x: (point.x + 1) * this.sceneWidth / 2, y: (1 - point.y) * this.sceneHeight / 2 }];
+    }), this.sceneWidth, this.sceneHeight);
     const canvas = this.renderer.domElement;
     canvas.dataset.camera = `${this.controls.getAzimuthalAngle().toFixed(3)},${this.controls.getPolarAngle().toFixed(3)},${this.camera.zoom.toFixed(3)}`;
     // Read-only presentation diagnostics, separate from the exact recorded grid state.
@@ -719,15 +815,19 @@ export class WarehouseRenderer {
         carrying: robot.payload.visible, forkLift: robot.lift.position.y,
       })),
       moving: [...this.robots.values()].filter((robot) => robot.motion).length,
-      trailHead: this.trailRobot ? {
-        x: this.trailEnd.x + (this.scenario.width - 1) / 2,
-        y: this.trailEnd.z + (this.scenario.height - 1) / 2,
-      } : null,
-      plannedHead: this.plannedLead && this.plannedLeadMesh.count ? {
-        x: this.plannedLead.robot.group.position.x + (this.scenario.width - 1) / 2,
-        y: this.plannedLead.robot.group.position.z + (this.scenario.height - 1) / 2,
-      } : null,
-      plannedDashes: this.plannedRoute.mesh.count + this.plannedLeadMesh.count,
+      routes: [...this.routes].filter(([id]) => this.robots.get(id)?.group.visible).map(([id, route]) => ({
+        id, orderId: route.orderId, color: `#${route.solid.material.color.getHexString()}`, laneOffset: route.solid.offset.x,
+        solidEdges: route.solid.mesh.count, plannedEdges: route.planned.mesh.count / 3,
+        trailHead: route.trailRobot ? {
+          x: route.trailEnd.x + (this.scenario.width - 1) / 2,
+          y: route.trailEnd.z + (this.scenario.height - 1) / 2,
+        } : null,
+        plannedHead: route.plannedLead && route.plannedLeadMesh.count ? {
+          x: route.plannedLead.robot.group.position.x + (this.scenario.width - 1) / 2,
+          y: route.plannedLead.robot.group.position.z + (this.scenario.height - 1) / 2,
+        } : null,
+        plannedDashes: route.planned.mesh.count + route.plannedLeadMesh.count,
+      })),
     });
     canvas.dataset.workerFrame = JSON.stringify(this.workers.map(({ track, pose }) => ({
       id: track.id, x: pose.position.x, y: pose.position.y, heading: pose.heading,
@@ -748,9 +848,9 @@ export class WarehouseRenderer {
     this.renderer.domElement.removeEventListener("webglcontextlost", this.onContextLost);
     this.controls.removeEventListener("change", this.onCameraChange);
     this.controls.dispose();
-    this.trailRobot = null;
-    this.plannedLead = null;
-    this.trailTip = null;
+    this.notices?.dispose();
+    this.notices = null;
+    this.routes.clear();
     this.robots.clear();
     this.workers.length = 0;
     this.geometries.forEach((geometry) => geometry.dispose());

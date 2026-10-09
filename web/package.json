@@ -12,7 +12,7 @@
     "build:pages": "node scripts/export-github-pages.mjs",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "pnpm run test:pages",
-    "test:scene": "node --experimental-strip-types --test tests/scene-model.test.mjs tests/workforce-model.test.mjs",
+    "test:scene": "node --experimental-strip-types --test tests/scene-model.test.mjs tests/workforce-model.test.mjs tests/fleet-notice-model.test.mjs",
     "test:server": "pnpm run test:scene && pnpm run build && node --test tests/project-assets.test.mjs tests/rendered-html.test.mjs tests/server-build.test.mjs",
     "test:pages": "pnpm run test:scene && pnpm run build:pages && node --test tests/project-assets.test.mjs tests/rendered-html.test.mjs tests/pages-export.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"

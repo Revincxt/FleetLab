@@ -212,8 +212,6 @@ def test_checked_in_fleet_is_deterministic_and_replays_every_shared_transition(
         source,
         total=config["taskCount"],
         seed=config["taskSeed"],
-        min_spacing=config["taskSpacing"],
-        unique_points=config["uniqueTaskPoints"],
     )
     gallery = json.loads((ROOT / f"web/public/{filename}.json").read_text())
     assert gallery["kind"] == "fleet-gallery"

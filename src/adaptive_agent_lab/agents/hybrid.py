@@ -133,10 +133,6 @@ class HybridAgent(Agent):
         return self._environment_steps
 
     @property
-    def current_option_index(self) -> int | None:
-        return self._active_option
-
-    @property
     def current_option(self) -> str | None:
         if self._active_option is None or self._template is None:
             return None

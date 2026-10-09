@@ -11,7 +11,8 @@ import { ForkliftGlyph } from "./forklift-glyph";
 import { chargingStationState, displayedOrderState, isVehicleLoaded, parseFleetGallery, releasedOrderEntries, vehiclePoint, type FleetGallery } from "./fleet-model";
 import { batteryColors, batteryToneHints, eventLabels, fleetStatusTone, gridCellHint, orderLabels, simulationStepHint, statusColors, statusToneHints, vehicleBatteryTone, vehicleStatusHint, vehicleStatusLabel, vehicleStatusTone } from "./fleet-terminology";
 import { isOrderMarkerVisible, type MazeFrame } from "./maze-model";
-import { currentTaskRoute } from "./task-route-model";
+import { currentTaskRoutes } from "./task-route-model";
+import { fleetNoticesAt } from "./fleet-notice-model";
 
 const speeds = [0.5, 1, 2] as const;
 
@@ -115,7 +116,7 @@ export default function FleetExplorer() {
 
   const pad = (value: number | string, length = 2) => String(value).padStart(length, "0");
   const { scenario } = replay;
-  const palette = ["#c9ee96", "#e7b981", "#b8aff0", "#79cdd3"];
+  const palette = ["#a5ca7a", "#d3a17c", "#b09fc9", "#7fb7c5"];
   const vehicles = replay.vehicles.map((vehicle, index) => ({ ...vehicle, color: palette[index] ?? vehicle.color }));
   const layoutNames: Record<string, string> = {
     "rack-maze": "Central Aisle",
@@ -151,7 +152,8 @@ export default function FleetExplorer() {
   const sceneFrame: MazeFrame = {
     time, animate: playing, stepDuration, fleet, highlightedOrderId: visibleSelectedOrderId,
     primary: fleet[selectedIndex],
-    primaryRoute: currentTaskRoute(replay, time, selectedIndex),
+    routes: currentTaskRoutes(replay, time),
+    notices: fleetNoticesAt(replay, time),
     blocked: frame.blocked, orderStates,
     orderColors: scenario.orders.map((order) => {
       const carrier = frame.vehicles.findIndex((vehicle) => vehicle.carriedOrderId === order.id);

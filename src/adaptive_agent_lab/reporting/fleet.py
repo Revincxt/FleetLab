@@ -245,8 +245,6 @@ def build_fleet_gallery(
             scenario,
             total=config.get("taskCount", len(scenario.orders)),
             seed=task_seed,
-            min_spacing=config.get("taskSpacing", 2),
-            unique_points=config.get("uniqueTaskPoints", True),
         )
         cases.append(
             {

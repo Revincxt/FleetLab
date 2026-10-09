@@ -100,18 +100,6 @@ class ReplayBuffer(Generic[StateT, ActionT]):
         )
         self.append(transition)
 
-    def push(
-        self,
-        state: StateT,
-        action: ActionT,
-        reward: float,
-        next_state: StateT,
-        done: bool,
-    ) -> None:
-        """Alias for :meth:`add`, matching common replay-buffer terminology."""
-
-        self.add(state, action, reward, next_state, done)
-
     def append(self, transition: Transition[StateT, ActionT]) -> None:
         """Append an already constructed transition."""
 

@@ -1,3 +1,5 @@
+import type { FleetNotice } from "./fleet-notice-model";
+
 export type GridPoint = { x: number; y: number };
 export type MazeOrderState = "queued" | "ready" | "carried" | "delivered" | "expired";
 
@@ -33,7 +35,8 @@ export type MazeFrame = {
   stepDuration?: number;
   fleet: MazeRobot[];
   primary: MazeRobot;
-  primaryRoute: TaskRoute | null;
+  routes: Record<string, TaskRoute | null>;
+  notices: FleetNotice[];
   blocked: GridPoint[];
   orderStates: MazeOrderState[];
   orderColors?: (string | null)[];

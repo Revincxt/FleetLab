@@ -173,11 +173,6 @@ class MLPQNetwork:
             for target, origin in zip(self._biases, source._biases, strict=True)
         ]
 
-    def soft_update(self, source: MLPQNetwork, tau: float) -> None:
-        """Alias for :meth:`soft_update_from`."""
-
-        self.soft_update_from(source, tau)
-
     def state_dict(self) -> dict[str, object]:
         """Return parameters and architecture using JSON-serializable values."""
 
@@ -370,8 +365,4 @@ class MLPQNetwork:
             raise ValueError(f"{name} must contain only finite values")
 
 
-# A concise alias is convenient for agents while the explicit class name keeps
-# documentation clear.
-QNetwork = MLPQNetwork
-
-__all__ = ["MLPQNetwork", "QNetwork"]
+__all__ = ["MLPQNetwork"]

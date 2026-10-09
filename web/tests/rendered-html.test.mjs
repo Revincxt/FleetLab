@@ -252,7 +252,7 @@ test("omits the bottom legend while keeping scene markers and charger status", a
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(page + css, /map-legend|legend-route|legend-pickup|legend-dropoff|legend-charger|legend-closure|Map legend/);
-  for (const retained of ['primaryRoute:', 'blocked: frame.blocked, orderStates', '<WarehouseScene', 'className="chargers-panel side-panel"']) assert.ok(page.includes(retained), retained);
+  for (const retained of ['routes: currentTaskRoutes(replay, time)', 'blocked: frame.blocked, orderStates', '<WarehouseScene', 'className="chargers-panel side-panel"']) assert.ok(page.includes(retained), retained);
 });
 
 test("uses concise layout-based scene names without changing replay identifiers", async () => {
@@ -326,7 +326,7 @@ test("hides completed task markers even when their history card is selected", as
   assert.doesNotMatch(renderer, /state === "delivered" \? 0\.22/);
 });
 
-test("shows only the current task's completed route and recorded plan without old preview controls", async () => {
+test("shows every forklift's current task route independently of selection", async () => {
   const [page, css, model, renderer] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -336,11 +336,30 @@ test("shows only the current task's completed route and recorded plan without ol
   assert.doesNotMatch(page + css, /Look-ahead|lookAheadHint|showFuture|setShowFuture|toggle-control/);
   assert.doesNotMatch(page + model + renderer, /futureRoute|referenceRoute|frameRobots|shouldAnimateMove|referencePosition|futureSegments/);
   assert.match(model, /fleet: MazeRobot\[\]/);
-  assert.match(renderer, /this\.route = this\.makeRoute\(\)/);
-  assert.match(page, /primaryRoute: currentTaskRoute\(replay, time, selectedIndex\)/);
-  assert.doesNotMatch(page, /primaryRoute: replay\.frames\.slice\(0/);
-  assert.match(renderer, /this\.plannedRoute = this\.makeRoute\(true\)/);
+  assert.match(model, /routes: Record<string, TaskRoute \| null>/);
+  assert.match(page, /routes: currentTaskRoutes\(replay, time\)/);
+  assert.doesNotMatch(page + model + renderer, /primaryRoute|this\.plannedRoute|this\.trailRobot/);
+  for (const expression of ["this.routes.get(robot.id)", "this.routes.set(robot.id, route)", "frame.routes[robot.id]", "this.updateRoute(route.solid, trail.segments, robot.color", "this.updateRoute(route.planned, routeSegments(taskRoute.planned), robot.color", "this.clearVehicleRoute(route)", "this.updateTrailTip(route)", "this.updatePlannedLead(route)", 'canvas.dataset.routeScope = "fleet"', "this.routes.clear()"]) assert.ok(renderer.includes(expression), expression);
+  assert.match(renderer, /const solid = this\.makeRoute\(false, lane\)/);
+  assert.match(renderer, /const planned = this\.makeRoute\(true, lane\)/);
   assert.match(renderer, /dashedRouteSegments\(\[lead\.edge\], progress\)/);
+});
+
+test("forklift speech bubbles follow rendered positions and preserve camera interactions", async () => {
+  const [page, renderer, notices, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/warehouse-renderer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/forklift-notices.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /notices: fleetNoticesAt\(replay, time\)/);
+  assert.match(renderer, /this\.notices\?\.step\(frame\.time, frame\.notices, now\)/);
+  assert.match(renderer, /robot\.group\.position\.clone\(\).*project\(this\.camera\)/);
+  assert.match(renderer, /this\.notices\?\.dispose\(\)/);
+  assert.match(notices, /setAttribute\("aria-live", "polite"\)/);
+  assert.match(notices, /clearTimeout\(this\.wakeup\)/);
+  assert.match(css, /\.forklift-notices \{[^}]*pointer-events: none/);
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.forklift-notice \{ animation: none/);
 });
 
 test("removes the Statistics view and its unused styles while retaining the map and algorithms", async () => {

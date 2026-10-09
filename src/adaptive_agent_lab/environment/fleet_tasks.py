@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from collections import Counter, deque
+from collections import deque
 from dataclasses import replace
 
 from adaptive_agent_lab.environment.contracts import Order, Position
@@ -13,26 +13,18 @@ from adaptive_agent_lab.environment.scenario import Scenario
 NEIGHBORS = ((0, -1), (0, 1), (-1, 0), (1, 0))
 
 
-def add_random_fleet_tasks(
-    scenario: Scenario, *, total: int, seed: int, min_spacing: int = 2, unique_points: bool = True
-) -> Scenario:
+def add_random_fleet_tasks(scenario: Scenario, *, total: int, seed: int) -> Scenario:
     """Preserve existing orders and add reachable pickup/drop-off pairs.
 
     A local RNG and canonical candidate ordering make an exported replay stable.
-    With unique_points=False, sample rack-side pickups and open-area drop-offs
+    Sample rack-side pickups and open-area drop-offs
     with replacement, without endpoint de-duplication or spatial balancing.
-    The legacy unique mode balances endpoints across 12 zones.
     Routing checks conservatively treat every closure cell as permanently shut.
-    In unique mode, spacing one allows adjacency but forbids shared endpoints.
     """
     if isinstance(total, bool) or not isinstance(total, int) or total < len(scenario.orders):
         raise ValueError("task count must be an integer no smaller than the existing order count")
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError("task seed must be a non-negative integer")
-    if isinstance(min_spacing, bool) or not isinstance(min_spacing, int) or min_spacing < 1:
-        raise ValueError("task spacing must be a positive integer")
-    if not isinstance(unique_points, bool):
-        raise ValueError("unique_points must be a boolean")
     if total == len(scenario.orders):
         return scenario
     if scenario.horizon < 2:
@@ -63,10 +55,7 @@ def add_random_fleet_tasks(
         return cache[start]
 
     reachable = set(distances(scenario.initial_robot.position))
-    taken = {point for order in scenario.orders for point in (order.pickup, order.dropoff)}
     reserved = set(grid.charging_stations) | {scenario.initial_robot.position}
-    if unique_points:
-        reserved |= taken
     candidates = sorted(reachable - reserved)
     pickups = [
         point
@@ -79,22 +68,6 @@ def add_random_fleet_tasks(
         if sum(point.translated(dx, dy) in free for dx, dy in NEIGHBORS) >= 3
     ]
 
-    def zone(point: Position) -> tuple[int, int]:
-        return point.x * 4 // grid.width, point.y * 3 // grid.height
-
-    density = Counter(zone(point) for point in taken)
-
-    def choose(points: list[Position]) -> Position:
-        if not unique_points:
-            return rng.choice(points)
-        lowest = min(density[zone(point)] for point in points)
-        return rng.choice([point for point in points if density[zone(point)] == lowest])
-
-    def spaced(point: Position) -> bool:
-        return not unique_points or all(
-            point.manhattan_distance(other) >= min_spacing for other in taken
-        )
-
     dock_costs = {
         point: min(
             (
@@ -106,43 +79,32 @@ def add_random_fleet_tasks(
         for point in candidates
     }
 
+    options: dict[Position, list[Position]] = {}
+    for pickup in pickups:
+        routes = distances(pickup)
+        destinations = [
+            point
+            for point in dropoffs
+            if 6 <= routes.get(point, 0) <= 36
+            and dock_costs[pickup] + routes[point] + dock_costs[point] + 12
+            <= scenario.battery_capacity
+        ]
+        if destinations:
+            options[pickup] = destinations
+    if not options:
+        raise ValueError("no reachable pickup/drop-off pairs fit the battery capacity")
+
+    eligible_pickups = list(options)
     orders = list(scenario.orders)
     events = list(scenario.events)
     ids = {order.order_id for order in orders}
     count = total - len(orders)
     initial_extra = max(0, 4 - sum(order.release_time == 0 for order in orders))
     release_window = scenario.horizon // 2
-    options: dict[Position, list[Position]] = {}
-
-    def candidate_pairs() -> dict[Position, list[Position]]:
-        pairs: dict[Position, list[Position]] = {}
-        available_dropoffs = [point for point in dropoffs if spaced(point)]
-        for pickup in pickups:
-            if not spaced(pickup):
-                continue
-            routes = distances(pickup)
-            destinations = [
-                point
-                for point in available_dropoffs
-                if 6 <= routes.get(point, 0) <= 36
-                and dock_costs[pickup] + routes[point] + dock_costs[point] + 12
-                <= scenario.battery_capacity
-            ]
-            if destinations:
-                pairs[pickup] = destinations
-        return pairs
 
     for index in range(count):
-        if unique_points or not options:
-            options = candidate_pairs()
-        if not options:
-            raise ValueError("not enough separated, reachable task points for this task count")
-        pickup = choose(list(options))
-        taken.add(pickup)
-        density[zone(pickup)] += 1
-        dropoff = choose([point for point in options[pickup] if spaced(point)])
-        taken.add(dropoff)
-        density[zone(dropoff)] += 1
+        pickup = rng.choice(eligible_pickups)
+        dropoff = rng.choice(options[pickup])
         release = (
             0
             if index < initial_extra
