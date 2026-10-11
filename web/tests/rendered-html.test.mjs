@@ -318,11 +318,18 @@ test("hides completed task markers even when their history card is selected", as
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/warehouse-renderer.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /visibleSelectedOrderId = [^\n]+isOrderMarkerVisible\(orderStates\[index\]\)/);
+  assert.match(page, /visibleSelectedOrderId = [^\n]+isOrderMarkerVisible\(playback\.orderStates\[index\]\)/);
   assert.match(renderer, /group\.visible = isOrderEndpointVisible\(state, endpoint\)/);
   assert.match(renderer, /if \(!group\.visible\) return/);
   assert.match(renderer, /if \(highlighted && !marker\.label\)/);
   assert.match(renderer, /marker\.label\.visible = highlighted/);
+  assert.match(renderer, /this\.createTaskMarkers = \(index\) =>/);
+  assert.match(renderer, /if \(!markers\) \{ markers = this\.createTaskMarkers\(index\)/);
+  assert.match(renderer, /this\.releaseTaskMarkers\(markers\); this\.orderMarkers\.delete\(index\)/);
+  for (const expression of ["this.scene.remove(group)", "ink.dispose()", "this.materials.delete(ink)", "this.textures.delete(material.map)", "canvas.dataset.allocatedTaskPointCount"]) {
+    assert.ok(renderer.includes(expression), expression);
+  }
+  assert.doesNotMatch(renderer, /this\.orderMarkers\.flat\(/);
   assert.doesNotMatch(renderer, /state === "delivered" \? 0\.22/);
 });
 
@@ -343,6 +350,24 @@ test("shows every forklift's current task route independently of selection", asy
   assert.match(renderer, /const solid = this\.makeRoute\(false, lane\)/);
   assert.match(renderer, /const planned = this\.makeRoute\(true, lane\)/);
   assert.match(renderer, /dashedRouteSegments\(\[lead\.edge\], progress\)/);
+});
+
+test("reuses replay presentation and only refreshes shadows when scene objects change", async () => {
+  const [page, scene, chart, renderer] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/warehouse-scene.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/warehouse-renderer.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /const playback = useMemo\(/);
+  assert.match(page, /const sceneFrame = useMemo<MazeFrame \| null>/);
+  assert.match(page, /const filteredOrders = useMemo\(/);
+  assert.match(scene, /export default memo\(WarehouseScene\)/);
+  assert.match(chart, /export default memo\(TaskProgress\)/);
+  assert.match(renderer, /shadowMap\.autoUpdate = false/);
+  assert.match(renderer, /if \(robot\.motion\) this\.renderer\.shadowMap\.needsUpdate = true;\s+this\.advanceRobot/);
+  assert.match(renderer, /if \(this\.workers\.some\(worker => worker\.motion\)\) this\.renderer\.shadowMap\.needsUpdate = true/);
+  assert.match(renderer, /update\(frame: MazeFrame\) \{\s+if \(this\.disposed\) return;\s+this\.renderer\.shadowMap\.needsUpdate = true/);
 });
 
 test("forklift speech bubbles follow rendered positions and preserve camera interactions", async () => {

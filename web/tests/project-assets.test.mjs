@@ -34,3 +34,10 @@ test("README and social previews use full-size PNG assets with matching metadata
   assert.match(layout, /height: 1024/);
   assert.doesNotMatch(layout, /chatgpt\.site|SITE_ORIGIN|Dyna-Q|DQN/);
 });
+
+test("benchmark metadata has no removed-document or non-executable training-config references", async () => {
+  const config = JSON.parse(await readFile(new URL("configs/benchmarks/main.json", root), "utf8"));
+  assert.ok(config.agents.length > 0);
+  for (const obsolete of ["protocol", "problem_formulation"]) assert.ok(!Object.hasOwn(config, obsolete));
+  assert.ok(config.agents.every(agent => !Object.hasOwn(agent, "training_config")));
+});

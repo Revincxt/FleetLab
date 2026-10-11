@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { dashedRouteSegments, isAdjacent, isOrderEndpointVisible, isOrderMarkerVisible, progressiveRoute, routeCapacity, routeSegments, shouldAnimateFleetMove, toWorld } from "../app/components/maze-model.ts";
 import { createRobotMotion, retimeRobotMotion, sampleRobotMotion } from "../app/components/replay-motion.ts";
 import { factoryFixtures, safetyEdges } from "../app/components/factory-layout.ts";
-import { chargingStationState, parseFleetGallery, displayedOrderState, isVehicleLoaded, releasedOrderEntries } from "../app/components/fleet-model.ts";
+import { chargingStationState, parseFleetGallery, parseFleetReplay, displayedOrderState, isVehicleLoaded, releasedOrderEntries } from "../app/components/fleet-model.ts";
 import { fleetAlgorithms, fleetAlgorithm } from "../app/components/fleet-algorithms.ts";
 import { buildForkliftPayload, LOADED_FORK_LIFT } from "../app/components/forklift-payload.ts";
 import { buildIndustrialForklift } from "../app/components/factory-forklift.ts";
@@ -107,6 +107,55 @@ test("three algorithms use separate deterministic runs on identical progressivel
       }
     }
   }
+});
+
+test("shared task snapshots still validate every frame's cargo and delivered counts", () => {
+  const replay = gallery.cases[0];
+  const shared = replay.frames.findIndex((frame, index) => index && frame.orderStates === replay.frames[index - 1].orderStates);
+  assert.ok(shared > 0);
+  const broken = (change) => ({ ...replay, frames: replay.frames.map((frame, index) => index === shared ? { ...frame, ...change } : frame) });
+  assert.throws(() => parseFleetReplay(broken({ completedOrders: replay.frames[shared].completedOrders + 1 })), /invalid/);
+  const id = replay.scenario.orders[0].id;
+  assert.throws(() => parseFleetReplay(broken({ vehicles: replay.frames[shared].vehicles.map((vehicle, index) => index ? vehicle : { ...vehicle, carriedOrderId: id }) })), /invalid/);
+  for (const orderStates of [
+    { ...replay.frames[shared].orderStates, [id]: "invalid" },
+    Object.fromEntries(Object.entries(replay.frames[shared].orderStates).filter(([key]) => key !== id)),
+    { ...replay.frames[shared].orderStates, extra: "pending" },
+  ]) assert.throws(() => parseFleetReplay(broken({ orderStates })), /invalid/);
+});
+
+test("task history indexing is lazy, seek-safe, isolated and identical to a fresh prefix scan", () => {
+  const source = gallery.cases[0];
+  const replay = { ...source, frames: source.frames.slice(0, 180) };
+  let selected = -1, stateReads = 0;
+  replay.frames = replay.frames.map(frame => ({ ...frame, get orderStates() {
+    assert.ok(frame.time <= selected, "Must not read any future task state");
+    stateReads++;
+    return frame.orderStates;
+  } }));
+  const reference = (end) => {
+    const points = [];
+    for (let index = 0; index <= end; index++) {
+      const frame = source.frames[index];
+      const released = source.scenario.orders.filter(order => order.releaseTime <= frame.time && frame.orderStates[order.id] !== "pending").length;
+      const point = { time: frame.time, released, delivered: frame.completedOrders };
+      const previous = points.at(-1);
+      if (!previous || previous.released !== released || previous.delivered !== point.delivered || index === end) points.push(point);
+    }
+    return points;
+  };
+  for (const time of [0, 1, 40, 94, 95, 179, 20, 0, 179, 94, 94.9, -5, Infinity]) {
+    selected = Math.max(0, Math.min(179, Math.floor(time)));
+    assert.deepEqual(taskHistory(replay, time), reference(selected));
+  }
+  const before = stateReads;
+  const points = taskHistory(replay, 94);
+  points[0].released = -999;
+  points.push({ time: 9999, released: 9999, delivered: 9999 });
+  assert.deepEqual(taskHistory(replay, 94), reference(94));
+  assert.equal(stateReads, before, "Already indexed frames must not be scanned again");
+  assert.deepEqual(taskHistory(replay, NaN), []);
+  assert.deepEqual(taskHistory({ ...source }, 0), reference(0), "Independent replay objects have independent indices");
 });
 
 test("task progress retains every recorded count change without revealing future tasks", () => {
@@ -474,6 +523,59 @@ test("current task routes use only this assignment's history and the recorded pl
   const prefix = { frames: replay.frames.slice(0, 3) };
   assert.deepEqual(currentTaskRoute(prefix, 2, 0), route, "Future frames never determine a plan");
   assert.throws(() => decodePlannedRoute({x:0,y:0}, "RX"), /Invalid/);
+});
+
+test("assignment cursors reuse history without retaining mutable routes or reading future frames", () => {
+  let reads = 0, allowed = -1;
+  const frames = Array.from({ length: 200 }, (_, time) => ({
+    orderStates: { a: "available" },
+    vehicles: [{ id: "one", position: [time, 1], carriedOrderId: null, plannedMoves: "R",
+      get assignedOrderId() { assert.ok(time <= allowed, "No future assignment is read"); reads++; return "a"; } }],
+  }));
+  const replay = { frames };
+  for (allowed = 0; allowed < frames.length; allowed++) {
+    const route = currentTaskRoute(replay, allowed, 0);
+    assert.equal(route.completed.length, allowed + 1);
+    assert.deepEqual(route.completed[0], { x: 0, y: 1 });
+    assert.deepEqual(route.completed.at(-1), { x: allowed, y: 1 });
+  }
+  assert.equal(reads, frames.length, "Sequential playback only checks the current assignment");
+  const before = reads;
+  const route = currentTaskRoute(replay, 199, 0);
+  route.completed[0].x = -999;
+  route.planned[0].x = -999;
+  assert.deepEqual(currentTaskRoute(replay, 199, 0).completed[0], { x: 0, y: 1 });
+  assert.equal(reads - before, 2, "Repeat inspection does not scan historical assignments");
+  allowed = 20;
+  assert.equal(currentTaskRoute(replay, 20, 0).completed.length, 21, "Rewind remains bounded to the past");
+  allowed = 199;
+  const independent = { frames };
+  const oldReads = reads;
+  assert.deepEqual(currentTaskRoute(independent, 199, 0), currentTaskRoute(replay, 199, 0));
+  assert.ok(reads - oldReads >= 200, "A separate replay builds its own cursor");
+});
+
+test("assignment cursors match fresh scans across task changes, delivery, release gaps and seeking", () => {
+  const vehicle = (x, assignedOrderId, carriedOrderId = null) => ({ id: "one", position: [x, 1], assignedOrderId, carriedOrderId, plannedMoves: "R." });
+  const replay = { frames: [
+    { vehicles: [vehicle(0, "a")], orderStates: { a: "pending", b: "pending" } },
+    { vehicles: [vehicle(1, "a")], orderStates: { a: "available", b: "pending" } },
+    { vehicles: [vehicle(2, "a", "a")], orderStates: { a: "picked_up", b: "pending" } },
+    { vehicles: [vehicle(3, "b")], orderStates: { a: "delivered", b: "available" } },
+    { vehicles: [vehicle(4, null)], orderStates: { a: "delivered", b: "expired" } },
+    { vehicles: [vehicle(5, "b")], orderStates: { a: "delivered", b: "available" } },
+  ] };
+  const scan = (time) => {
+    const frame = replay.frames[time], robot = frame.vehicles[0];
+    const task = (v) => v.carriedOrderId ?? v.assignedOrderId;
+    const orderId = task(robot);
+    if (!orderId || !["available", "picked_up"].includes(frame.orderStates[orderId])) return null;
+    let start = time;
+    while (start && task(replay.frames[start - 1].vehicles[0]) === orderId && ["available", "picked_up"].includes(replay.frames[start - 1].orderStates[orderId])) start--;
+    return { orderId, completed: replay.frames.slice(start, time + 1).map(f => ({ x: f.vehicles[0].position[0], y: 1 })),
+      planned: decodePlannedRoute({ x: robot.position[0], y: 1 }, robot.plannedMoves) };
+  };
+  for (const time of [0, 1, 2, 3, 4, 5, 2, 1, 2, 5, 3, 4, 5, 0, 3]) assert.deepEqual(currentTaskRoute(replay, time, 0), scan(time));
 });
 
 test("fleet routes stay keyed by vehicle and clear completed tasks independently", () => {

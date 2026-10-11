@@ -17,6 +17,10 @@ export function decodePlannedRoute(start: GridPoint, codes: string): GridPoint[]
 
 const taskId = (vehicle: VehicleState) => vehicle.carriedOrderId ?? vehicle.assignedOrderId;
 const point = (vehicle: VehicleState) => ({ x: vehicle.position[0], y: vehicle.position[1] });
+type AssignmentStart = { time: number; orderId: string; start: number };
+// One cursor per vehicle, not a retained route for every frame. Replay tapes
+// are immutable; weak keys also release cursors when an algorithm is unloaded.
+const assignmentStarts = new WeakMap<FleetReplay, Map<number, AssignmentStart>>();
 
 /** Every vehicle's task route is visible, independently of the inspector selection. */
 export function currentTaskRoutes(replay: FleetReplay, time: number): Record<string, TaskRoute | null> {
@@ -31,12 +35,23 @@ export function currentTaskRoute(replay: FleetReplay, time: number, vehicleIndex
   if (!vehicle) return null;
   const orderId = taskId(vehicle);
   if (!orderId || !["available", "picked_up"].includes(frame.orderStates[orderId])) return null;
+  let cursors = assignmentStarts.get(replay);
+  if (!cursors) { cursors = new Map(); assignmentStarts.set(replay, cursors); }
+  const previous = cursors.get(vehicleIndex);
   let start = time;
-  while (start > 0 && taskId(replay.frames[start - 1].vehicles[vehicleIndex]) === orderId &&
-    ["available", "picked_up"].includes(replay.frames[start - 1].orderStates[orderId])) start--;
+  if (previous?.orderId === orderId && (previous.time === time || previous.time === time - 1)) {
+    start = previous.start;
+  } else {
+    // Arbitrary seeks still scan only the selected frame's past assignment.
+    while (start > 0 && taskId(replay.frames[start - 1].vehicles[vehicleIndex]) === orderId &&
+      ["available", "picked_up"].includes(replay.frames[start - 1].orderStates[orderId])) start--;
+  }
+  cursors.set(vehicleIndex, { time, orderId, start });
+  const completed: GridPoint[] = [];
+  for (let index = start; index <= time; index++) completed.push(point(replay.frames[index].vehicles[vehicleIndex]));
   return {
     orderId,
-    completed: replay.frames.slice(start, time + 1).map(frame => point(frame.vehicles[vehicleIndex])),
+    completed,
     planned: decodePlannedRoute(point(vehicle), vehicle.plannedMoves ?? ""),
   };
 }

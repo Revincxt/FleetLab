@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { MazeFrame, MazeScenario } from "./maze-model";
 import type { WarehouseRenderer } from "./warehouse-renderer";
 import type { WorkerTrafficFrame } from "./workforce-model";
@@ -20,7 +20,7 @@ function CameraIcon({ name }: { name: keyof typeof cameraIcons }) {
   );
 }
 
-export default function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
+function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
   scenario: MazeScenario;
   frame: MazeFrame;
   traffic: WorkerTrafficFrame[];
@@ -104,3 +104,5 @@ export default function WarehouseScene({ scenario, frame, traffic, workerMoveSte
     </div>
   );
 }
+
+export default memo(WarehouseScene);

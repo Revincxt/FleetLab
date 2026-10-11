@@ -1,11 +1,9 @@
 {
   "schema_version": "0.1",
   "suite_id": "main-v0.1",
-  "description": "Planned paired evaluation of planning, learning, and hybrid agents in the dynamic single-robot warehouse.",
-  "protocol": "docs/experiment-protocol.md",
-  "problem_formulation": "docs/problem-formulation.md",
+  "description": "Paired evaluation of fresh planning, learning, and hybrid agents in the dynamic single-robot warehouse.",
   "verification_status": "UNVERIFIED_PROTOCOL_NOT_RUN",
-  "current_execution_status": "BenchmarkSuite consumes the condition, seed, metric, bootstrap, comparison, and artifact subset. The current CLI creates fresh agents and does not load training configs or checkpoints.",
+  "current_execution_status": "BenchmarkSuite consumes the condition, seed, metric, bootstrap, comparison, and artifact subset. The CLI creates fresh agents without loading checkpoints or training learner agents.",
   "splits": {
     "train": {
       "root_seed": 2026080501,
@@ -25,7 +23,6 @@
       "id": "planning",
       "family": "planning",
       "implementation": "OpenLoopPlanningAgent",
-      "training_config": null,
       "parameters": {
         "task_order": "earliest_deadline_then_highest_priority_then_pickup_distance_then_order_id",
         "route_search": "astar_manhattan",
@@ -43,7 +40,6 @@
       "id": "replanning",
       "family": "planning",
       "implementation": "ReplanningAgent",
-      "training_config": null,
       "parameters": {
         "task_order": "earliest_deadline_then_highest_priority_then_pickup_distance_then_order_id",
         "route_search": "astar_manhattan",
@@ -60,28 +56,24 @@
       "id": "q-learning",
       "family": "model_free_rl",
       "implementation": "QLearningAgent",
-      "training_config": "configs/training/q-learning-small.json",
       "current_benchmark_state": "fresh_untrained_factory_if_explicitly_selected"
     },
     {
       "id": "dyna-q",
       "family": "model_based_rl",
       "implementation": "DynaQAgent",
-      "training_config": "configs/training/dyna-q-small.json",
       "current_benchmark_state": "fresh_untrained_factory_if_explicitly_selected"
     },
     {
       "id": "dqn",
       "family": "deep_rl",
       "implementation": "DQNAgent",
-      "training_config": "configs/training/dqn-small.json",
       "current_benchmark_state": "fresh_untrained_factory_if_explicitly_selected"
     },
     {
       "id": "hybrid",
       "family": "learning_augmented_planning",
       "implementation": "HybridAgent",
-      "training_config": "configs/training/hybrid-small.json",
       "current_benchmark_state": "fresh_untrained_factory_if_explicitly_selected",
       "parameters": {
         "high_level_options": "one_per_order_plus_charge_and_wait",

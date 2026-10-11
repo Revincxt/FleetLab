@@ -101,10 +101,24 @@ export function parseFleetReplay(value: unknown): FleetReplay {
   if (!Number.isInteger(moveSteps) || moveSteps < 1) return fail();
   if (new Set(workerIds).size !== workerIds.length || workerIds.some(id => !id || typeof id !== "string" || ids.includes(id)) ||
     (replay.workforce && (!Number.isInteger(replay.workforce.count) || replay.workforce.count !== workerIds.length || !Number.isInteger(replay.workforce.seed)))) return fail();
+  let previousOrderStates: FleetFrame["orderStates"] | undefined;
+  let pickedUp = 0, delivered = 0;
   for (const [time, frame] of frames.entries()) {
     if (frame.time !== time || !Array.isArray(frame.vehicles) || frame.vehicles.length !== ids.length ||
-      !frame.orderStates || Object.keys(frame.orderStates).length !== orderIds.length ||
-      orderIds.some((id) => !statuses.has(frame.orderStates[id])) || !Array.isArray(frame.blocked)) return fail();
+      !frame.orderStates || !Array.isArray(frame.blocked)) return fail();
+    // Compact decoding shares unchanged state maps. Validate and count each new
+    // snapshot once, while still checking cargo/completion in every frame.
+    if (frame.orderStates !== previousOrderStates) {
+      if (Object.keys(frame.orderStates).length !== orderIds.length) return fail();
+      pickedUp = 0; delivered = 0;
+      for (const id of orderIds) {
+        const status = frame.orderStates[id];
+        if (!statuses.has(status)) return fail();
+        if (status === "picked_up") pickedUp++;
+        if (status === "delivered") delivered++;
+      }
+      previousOrderStates = frame.orderStates;
+    }
     const occupied = new Set<string>();
     const carried = new Set<string>();
     for (const [index, vehicle] of frame.vehicles.entries()) {
@@ -170,8 +184,7 @@ export function parseFleetReplay(value: unknown): FleetReplay {
       }
     }
     if (frame.vehicles.some(vehicle => previousPeople.has(vehicle.position.join(":")))) return fail();
-    if (Object.values(frame.orderStates).filter((status) => status === "picked_up").length !== carried.size ||
-      Object.values(frame.orderStates).filter((status) => status === "delivered").length !== frame.completedOrders) return fail();
+    if (pickedUp !== carried.size || delivered !== frame.completedOrders) return fail();
   }
   if (!frames.at(-1)?.terminated || replay.summary?.steps !== frames.length - 1 ||
     replay.summary.completedOrders !== frames.at(-1)?.completedOrders) return fail();

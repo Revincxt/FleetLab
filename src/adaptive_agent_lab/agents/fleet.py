@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+
 from adaptive_agent_lab.agents.fleet_routing import WindowedRouter
 from adaptive_agent_lab.agents.planning import SearchResult, astar_path
 from adaptive_agent_lab.environment.contracts import Action, OrderStatus, Position
@@ -12,6 +14,8 @@ FLEET_ALGORITHMS = {
     "whca": "WHCA*",
     "rhcr-pbs": "RHCR + PBS",
 }
+
+_ROUTE_CACHE_CAPACITY = 2048
 
 
 class FleetDispatcher:
@@ -29,6 +33,9 @@ class FleetDispatcher:
             raise ValueError(f"unknown fleet algorithm: {algorithm}")
         self.environment = environment
         self.algorithm = algorithm
+        self._route_cache: OrderedDict[tuple[Position, Position], SearchResult] = OrderedDict()
+        self._route_map = environment.scenario.map
+        self._route_blocked = environment.state.blocked_cells
         self.router = (
             None
             if algorithm == "coordinated-astar"
@@ -61,12 +68,29 @@ class FleetDispatcher:
     def _route(
         self, start: Position, goal: Position, *, avoid: set[Position] | None = None
     ) -> SearchResult:
-        return astar_path(
-            self.environment.scenario.map,
+        warehouse_map = self.environment.scenario.map
+        blocked = self.environment.state.blocked_cells
+        if warehouse_map is not self._route_map or blocked != self._route_blocked:
+            self._route_cache.clear()
+            self._route_map = warehouse_map
+            self._route_blocked = blocked
+        key = (start, goal)
+        if not avoid and key in self._route_cache:
+            self._route_cache.move_to_end(key)
+            return self._route_cache[key]
+        result = astar_path(
+            warehouse_map,
             start,
             goal,
-            blocked_cells=self.environment.state.blocked_cells | frozenset(avoid or ()),
+            blocked_cells=blocked | frozenset(avoid or ()),
         )
+        # Static distance queries are repeated during dispatch and charging.
+        # Occupancy-aware traffic routes must always use live reservations.
+        if not avoid:
+            self._route_cache[key] = result
+            if len(self._route_cache) > _ROUTE_CACHE_CAPACITY:
+                self._route_cache.popitem(last=False)
+        return result
 
     def actions(self) -> dict[str, Action]:
         state = self.environment.state

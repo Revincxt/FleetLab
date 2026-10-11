@@ -1,23 +1,21 @@
 from __future__ import annotations
 
-import json
 import unittest
-from pathlib import Path
 
 from adaptive_agent_lab.environment.rewards import RewardScheme
 
 
 class RewardTests(unittest.TestCase):
-    def test_reference_configs_only_declare_applied_reward_terms(self) -> None:
-        expected = RewardScheme().as_dict()
-        self.assertEqual(len(expected), 7)
-        self.assertNotIn("stranded_cost", expected)
-        root = Path(__file__).resolve().parents[1] / "configs/training"
-        configs = sorted(root.glob("*.json"))
-        self.assertEqual(len(configs), 4)
-        for path in configs:
-            with self.subTest(config=path.name):
-                self.assertEqual(json.loads(path.read_text())["reward"], expected)
+    def test_reward_scheme_only_exposes_applied_terms(self) -> None:
+        self.assertEqual(RewardScheme().as_dict(), {
+            "step_cost": -0.05,
+            "movement_cost": -0.02,
+            "invalid_action_cost": -1.0,
+            "pickup_reward": 0.25,
+            "delivery_reward_per_priority": 10.0,
+            "on_time_bonus_per_priority": 5.0,
+            "lateness_cost_per_step": -0.2,
+        })
 
     def test_on_time_delivery_receives_priority_scaled_bonus(self) -> None:
         rewards = RewardScheme()

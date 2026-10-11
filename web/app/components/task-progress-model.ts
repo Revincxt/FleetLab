@@ -2,17 +2,43 @@ import type { FleetReplay } from "./fleet-model";
 
 export type TaskHistoryPoint = { time: number; released: number; delivered: number };
 
-/** Keep every count change, but never expose frames beyond the selected step. */
+type HistoryIndex = { through: number; changes: { index: number; point: TaskHistoryPoint }[] };
+// Parsed replay tapes are immutable. Weak keys release the index when a layout
+// or algorithm is unloaded; only count changes, not entire histories, are kept.
+const histories = new WeakMap<FleetReplay, HistoryIndex>();
+
+/** Index each visited frame once, without reading ahead of the selected step. */
 export function taskHistory(replay: FleetReplay, time: number): TaskHistoryPoint[] {
   const end = Math.max(0, Math.min(replay.frames.length - 1, Math.floor(time)));
-  const points: TaskHistoryPoint[] = [];
-  for (let index = 0; index <= end; index++) {
-    const frame = replay.frames[index];
-    const released = replay.scenario.orders.filter((order) => order.releaseTime <= frame.time && frame.orderStates[order.id] !== "pending").length;
-    const point = { time: frame.time, released, delivered: frame.completedOrders };
-    const previous = points.at(-1);
-    if (!previous || point.released !== previous.released || point.delivered !== previous.delivered || index === end) points.push(point);
+  if (Number.isNaN(end)) return [];
+  let history = histories.get(replay);
+  if (!history) {
+    history = { through: -1, changes: [] };
+    histories.set(replay, history);
   }
+  for (let index = history.through + 1; index <= end; index++) {
+    const frame = replay.frames[index];
+    let released = 0;
+    for (const order of replay.scenario.orders) {
+      if (order.releaseTime <= frame.time && frame.orderStates[order.id] !== "pending") released++;
+    }
+    const point = { time: frame.time, released, delivered: frame.completedOrders };
+    const previous = history.changes.at(-1)?.point;
+    if (!previous || point.released !== previous.released || point.delivered !== previous.delivered) {
+      history.changes.push({ index, point });
+    }
+  }
+  history.through = Math.max(history.through, end);
+  // Binary search makes rewinding independent of the number of replay frames.
+  let low = 0, high = history.changes.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (history.changes[middle].index <= end) low = middle + 1;
+    else high = middle;
+  }
+  const points = history.changes.slice(0, low).map(({ point }) => ({ ...point }));
+  const last = history.changes[low - 1];
+  if (last && last.index !== end) points.push({ ...last.point, time: replay.frames[end].time });
   return points;
 }
 

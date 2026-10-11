@@ -76,9 +76,14 @@ export class WarehouseRenderer {
   private readonly materials = new Set<THREE.Material>();
   private readonly textures = new Set<THREE.Texture>();
   private readonly closures = new Map<string, THREE.Group>();
-  private readonly orderMarkers: TaskMarkerVisual[][] = [];
+  private readonly orderMarkers = new Map<number, TaskMarkerVisual[]>();
+  private createTaskMarkers!: (index: number) => TaskMarkerVisual[];
   private readonly routes = new Map<string, VehicleRouteVisual>();
   private readonly leadTransform = new THREE.Object3D();
+  private readonly routeTransform = new THREE.Object3D();
+  private readonly routeStart = new THREE.Vector3();
+  private readonly routeEnd = new THREE.Vector3();
+  private readonly routeDirection = new THREE.Vector3();
   private readonly robots = new Map<string, RobotVisual>();
   private readonly workers: WorkerPresentation[] = [];
   private readonly trailDirection = new THREE.Vector3();
@@ -112,6 +117,7 @@ export class WarehouseRenderer {
       this.renderer.toneMappingExposure = 1;
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      this.renderer.shadowMap.autoUpdate = false;
       this.renderer.domElement.tabIndex = 0;
       this.renderer.domElement.title = "Drag to orbit · Scroll to zoom";
       this.renderer.domElement.setAttribute("role", "img");
@@ -175,9 +181,9 @@ export class WarehouseRenderer {
     return this.material(new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.03 }));
   }
 
-  private world(point: GridPoint, elevation = 0) {
+  private world(point: GridPoint, elevation = 0, target = new THREE.Vector3()) {
     const value = toWorld(point, this.scenario.width, this.scenario.height, elevation);
-    return new THREE.Vector3(value.x, value.y, value.z);
+    return target.set(value.x, value.y, value.z);
   }
 
   private labelTexture(text: string, color: string, background = "#17303a") {
@@ -263,8 +269,11 @@ export class WarehouseRenderer {
     stencilGeometry.setAttribute("position", new THREE.Float32BufferAttribute(corners, 3));
     const glyphGeometry = this.geometry(new THREE.PlaneGeometry(0.27, 0.27));
     const glyphs = [this.labelTexture("P", "#a2c7b4", "#263a32"), this.labelTexture("D", "#dbc08c", "#3a3326")].map(map => this.material(new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false })));
-    this.scenario.orders.forEach((order, index) => {
-      const groups = [order.pickup, order.dropoff].map((point, endpoint) => {
+    // Allocate task visuals only while their endpoints are relevant. Shared
+    // geometry/glyphs survive completion so seeking backwards can recreate them.
+    this.createTaskMarkers = (index) => {
+      const order = this.scenario.orders[index];
+      return [order.pickup, order.dropoff].map((point, endpoint) => {
         const group = new THREE.Group();
         group.position.copy(this.world(point));
         const pickup = endpoint === 0;
@@ -279,9 +288,22 @@ export class WarehouseRenderer {
         this.scene.add(group);
         return { group, ink, label: null };
       });
-      this.orderMarkers.push(groups);
-    });
+    };
     this.renderer.domElement.dataset.totalTaskPointCount = String(this.scenario.orders.length * 2);
+  }
+
+  private releaseTaskMarkers(markers: TaskMarkerVisual[]) {
+    for (const { group, ink, label } of markers) {
+      this.scene.remove(group);
+      ink.dispose();
+      this.materials.delete(ink);
+      if (label) {
+        const material = label.material;
+        if (material.map) { material.map.dispose(); this.textures.delete(material.map); }
+        material.dispose();
+        this.materials.delete(material);
+      }
+    }
   }
 
   private makeRobot(letter: string, color: string): RobotVisual {
@@ -393,15 +415,16 @@ export class WarehouseRenderer {
 
   private updateRoute(route: RouteVisual, segments: RouteSegment[], color: string, elevation: number) {
     if (route.dashed) segments = dashedRouteSegments(segments);
-    const transform = new THREE.Object3D();
+    const transform = this.routeTransform;
     const joints = new Map<string, GridPoint>();
     segments.forEach(({ from, to }, index) => {
-      const start = this.world(from, elevation).add(route.offset);
-      const end = this.world(to, elevation).add(route.offset);
-      const direction = end.clone().sub(start);
+      const start = this.world(from, elevation, this.routeStart).add(route.offset);
+      const end = this.world(to, elevation, this.routeEnd).add(route.offset);
+      const direction = this.routeDirection.subVectors(end, start);
+      const length = direction.length();
       transform.position.copy(start).add(end).multiplyScalar(0.5);
-      transform.quaternion.setFromUnitVectors(this.up, direction.clone().normalize());
-      transform.scale.set(1, direction.length(), 1);
+      transform.quaternion.setFromUnitVectors(this.up, direction.normalize());
+      transform.scale.set(1, length, 1);
       transform.updateMatrix();
       route.mesh.setMatrixAt(index, transform.matrix);
       route.outline.setMatrixAt(index, transform.matrix);
@@ -417,7 +440,7 @@ export class WarehouseRenderer {
     transform.scale.setScalar(1);
     let index = 0;
     for (const point of joints.values()) {
-      transform.position.copy(this.world(point, elevation)).add(route.offset);
+      transform.position.copy(this.world(point, elevation, this.routeStart)).add(route.offset);
       transform.updateMatrix();
       route.joints.setMatrixAt(index, transform.matrix);
       route.outlineJoints.setMatrixAt(index++, transform.matrix);
@@ -604,6 +627,7 @@ export class WarehouseRenderer {
 
   update(frame: MazeFrame) {
     if (this.disposed) return;
+    this.renderer.shadowMap.needsUpdate = true;
     const now = performance.now();
     this.notices?.step(frame.time, frame.notices, now);
     const fleet = frame.fleet;
@@ -649,13 +673,20 @@ export class WarehouseRenderer {
       if (!group) { group = this.makeClosure(point); this.closures.set(key, group); }
       group.visible = true;
     });
-    this.orderMarkers.forEach((markers, index) => {
-      const state = frame.orderStates[index];
+    let taskPointCount = 0, taskLabelCount = 0;
+    frame.orderStates.forEach((state, index) => {
+      let markers = this.orderMarkers.get(index);
+      if (!isOrderEndpointVisible(state, 0) && !isOrderEndpointVisible(state, 1)) {
+        if (markers) { this.releaseTaskMarkers(markers); this.orderMarkers.delete(index); }
+        return;
+      }
+      if (!markers) { markers = this.createTaskMarkers(index); this.orderMarkers.set(index, markers); }
       const highlighted = frame.highlightedOrderId === this.scenario.orders[index].id;
       markers.forEach((marker, endpoint) => {
         const { group, ink } = marker;
         group.visible = isOrderEndpointVisible(state, endpoint);
         if (!group.visible) return;
+        taskPointCount++;
         group.scale.setScalar(highlighted ? 1.08 : 1);
         ink.opacity = highlighted ? 1 : frame.highlightedOrderId ? 0.4 : 0.7;
         ink.color.set(highlighted ? 0xc9ee96 : state === "carried" ? frame.orderColors?.[index] ?? 0xcfaf75 : endpoint === 0 ? 0x8db79f : 0xcfaf75);
@@ -666,11 +697,13 @@ export class WarehouseRenderer {
           group.add(marker.label);
         }
         if (marker.label) marker.label.visible = highlighted;
+        if (marker.label?.visible) taskLabelCount++;
       });
     });
     const canvas = this.renderer.domElement;
-    canvas.dataset.taskPointCount = String(this.orderMarkers.flat().filter(marker => marker.group.visible).length);
-    canvas.dataset.taskLabelCount = String(this.orderMarkers.flat().filter(marker => marker.group.visible && marker.label?.visible).length);
+    canvas.dataset.taskPointCount = String(taskPointCount);
+    canvas.dataset.taskLabelCount = String(taskLabelCount);
+    canvas.dataset.allocatedTaskPointCount = String(this.orderMarkers.size * 2);
     canvas.setAttribute("aria-label", `${frame.description} Drag or use arrow keys to orbit; plus and minus to zoom; Home to reset the camera.`);
     canvas.dataset.time = String(frame.time);
     canvas.dataset.primaryPosition = `${frame.primary.position.x},${frame.primary.position.y}`;
@@ -788,6 +821,8 @@ export class WarehouseRenderer {
     this.camera.updateMatrixWorld();
     let moving = false;
     for (const robot of this.robots.values()) {
+      // Include the final animation frame, when advanceRobot clears motion.
+      if (robot.motion) this.renderer.shadowMap.needsUpdate = true;
       this.advanceRobot(robot, now);
       moving ||= Boolean(robot.motion);
     }
@@ -795,6 +830,7 @@ export class WarehouseRenderer {
       this.updateTrailTip(route);
       this.updatePlannedLead(route);
     }
+    if (this.workers.some(worker => worker.motion)) this.renderer.shadowMap.needsUpdate = true;
     moving = this.advanceWorkers(now) || moving;
     this.renderer.render(this.scene, this.camera);
     this.notices?.draw(now, [...this.robots].flatMap(([vehicleId, robot]) => {
@@ -853,6 +889,7 @@ export class WarehouseRenderer {
     this.routes.clear();
     this.robots.clear();
     this.workers.length = 0;
+    this.orderMarkers.clear();
     this.geometries.forEach((geometry) => geometry.dispose());
     this.materials.forEach((material) => material.dispose());
     this.textures.forEach((texture) => texture.dispose());

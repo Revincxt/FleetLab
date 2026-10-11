@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { memo, useId, useMemo } from "react";
 import type { FleetReplay } from "./fleet-model";
 import { chartCeiling, taskAreaPath, taskHistory, taskStepPath } from "./task-progress-model";
 
-export default function TaskProgress({ replay, time }: { replay: FleetReplay; time: number }) {
+function TaskProgress({ replay, time }: { replay: FleetReplay; time: number }) {
   const chartId = useId();
   const history = useMemo(() => taskHistory(replay, time), [replay, time]);
   const latest = history[history.length - 1];
@@ -44,3 +44,5 @@ export default function TaskProgress({ replay, time }: { replay: FleetReplay; ti
     </div>
   </section>;
 }
+
+export default memo(TaskProgress);

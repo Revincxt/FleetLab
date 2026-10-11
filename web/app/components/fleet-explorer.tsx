@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import WarehouseScene from "./warehouse-scene";
 import TaskProgress from "./task-progress";
 import { AlgorithmPicker } from "./algorithm-picker";
@@ -15,6 +15,14 @@ import { currentTaskRoutes } from "./task-route-model";
 import { fleetNoticesAt } from "./fleet-notice-model";
 
 const speeds = [0.5, 1, 2] as const;
+const palette = ["#a5ca7a", "#d3a17c", "#b09fc9", "#7fb7c5"];
+const layoutNames: Record<string, string> = {
+  "rack-maze": "Central Aisle",
+  "parallel-aisles": "Long Aisles",
+  "cross-dock": "Mixed Layout",
+  serpentine: "Offset Aisles",
+};
+const pad = (value: number | string, length = 2) => String(value).padStart(length, "0");
 
 export default function FleetExplorer() {
   const [gallery, setGallery] = useState<FleetGallery | null>(null);
@@ -102,65 +110,71 @@ export default function FleetExplorer() {
     return () => window.removeEventListener("keydown", handle);
   }, [replay, maximumTime, time, loadingAlgorithm]);
 
+  const vehicles = useMemo(() => replay?.vehicles.map((vehicle, index) => ({ ...vehicle, color: palette[index] ?? vehicle.color })) ?? [], [replay]);
+  const frame = replay?.frames[time];
+  const complete = Boolean(replay && time === maximumTime);
+  const playback = useMemo(() => {
+    if (!replay || !frame) return null;
+    const { scenario } = replay;
+    const orderStates = scenario.orders.map((order) => displayedOrderState(frame.orderStates[order.id]));
+    const releasedOrders = releasedOrderEntries(scenario.orders, frame);
+    const assigned = new Set(frame.vehicles.map((vehicle) => vehicle.assignedOrderId));
+    const rank = (index: number) => orderStates[index] === "carried" ? 0
+      : assigned.has(scenario.orders[index].id) ? 1 : orderStates[index] === "ready" ? 2 : 3;
+    const openOrders = releasedOrders.filter(({ index }) => !["delivered", "expired"].includes(orderStates[index]));
+    openOrders.sort((a, b) => rank(a.index) - rank(b.index) || a.order.releaseTime - b.order.releaseTime || a.index - b.index);
+    return {
+      orderStates, releasedOrders, openOrders,
+      fleet: vehicles.map((vehicle, index) => ({
+        id: vehicle.id, label: vehicle.badge, color: vehicle.color,
+        position: vehiclePoint(frame.vehicles[index]), complete,
+        carrying: isVehicleLoaded(frame.vehicles[index]),
+      })),
+      routes: currentTaskRoutes(replay, time),
+      notices: fleetNoticesAt(replay, time),
+      orderColors: scenario.orders.map((order) => {
+        const carrier = frame.vehicles.findIndex((vehicle) => vehicle.carriedOrderId === order.id);
+        return carrier >= 0 ? vehicles[carrier].color : null;
+      }),
+    };
+  }, [replay, frame, vehicles, time, complete]);
+  const selectedIndex = Math.max(0, vehicles.findIndex((vehicle) => vehicle.id === selectedId));
+  const visibleSelectedOrderId = playback?.releasedOrders.some(({ order, index }) => order.id === selectedOrderId && isOrderMarkerVisible(playback.orderStates[index])) ? selectedOrderId : null;
+  const filteredOrders = useMemo(() => {
+    if (!playback) return [];
+    return taskFilter === "open" ? playback.openOrders : taskFilter === "all" ? playback.releasedOrders
+      : playback.releasedOrders.filter(({ index }) => playback.orderStates[index] === "delivered");
+  }, [playback, taskFilter]);
+  const sceneFrame = useMemo<MazeFrame | null>(() => {
+    if (!replay || !frame || !playback) return null;
+    const { fleet, orderStates, routes, notices, orderColors } = playback;
+    const selected = vehicles[selectedIndex], current = frame.vehicles[selectedIndex];
+    return {
+      time, animate: playing, stepDuration, fleet, highlightedOrderId: visibleSelectedOrderId,
+      primary: fleet[selectedIndex], routes, notices, orderColors,
+      blocked: frame.blocked, orderStates,
+      description: `${vehicles.length} forklifts at simulation step ${time}. ${frame.completedOrders} of ${playback.releasedOrders.length} released tasks delivered. AGV ${selected.badge} at grid cell (${current.position.join(", ")}). ${gridCellHint}`,
+    };
+  }, [replay, frame, playback, vehicles, selectedIndex, time, playing, stepDuration, visibleSelectedOrderId]);
+
   if (error && !gallery) return (
     <main className="loading-shell error-shell" role="alert">
       <BrandMark /><h1>Fleet replay unavailable</h1><p>{error}</p>
       <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Reload</button>
     </main>
   );
-  if (!gallery || !replay) return (
+  if (!gallery || !replay || !frame || !playback || !sceneFrame) return (
     <main className="loading-shell" aria-live="polite">
       <BrandMark /><span className="loading-mark">FleetLab</span><p>Loading fleet replay…</p>
     </main>
   );
 
-  const pad = (value: number | string, length = 2) => String(value).padStart(length, "0");
   const { scenario } = replay;
-  const palette = ["#a5ca7a", "#d3a17c", "#b09fc9", "#7fb7c5"];
-  const vehicles = replay.vehicles.map((vehicle, index) => ({ ...vehicle, color: palette[index] ?? vehicle.color }));
-  const layoutNames: Record<string, string> = {
-    "rack-maze": "Central Aisle",
-    "parallel-aisles": "Long Aisles",
-    "cross-dock": "Mixed Layout",
-    serpentine: "Offset Aisles",
-  };
-  const frame = replay.frames[time];
-  const selectedIndex = Math.max(0, vehicles.findIndex((vehicle) => vehicle.id === selectedId));
   const selected = vehicles[selectedIndex];
-  const current = frame.vehicles[selectedIndex];
-  const complete = time === maximumTime;
-  const orderStates = scenario.orders.map((order) => displayedOrderState(frame.orderStates[order.id]));
-  const releasedOrders = releasedOrderEntries(scenario.orders, frame);
+  const { orderStates, releasedOrders } = playback;
   const releasedCount = releasedOrders.length;
-  const visibleSelectedOrderId = releasedOrders.some(({ order, index }) => order.id === selectedOrderId && isOrderMarkerVisible(orderStates[index])) ? selectedOrderId : null;
   const fleetTone = fleetStatusTone(frame.vehicles);
-  const filteredOrders = releasedOrders.filter(({ index }) =>
-    taskFilter === "all" || (taskFilter === "done" ? orderStates[index] === "delivered" : !["delivered", "expired"].includes(orderStates[index]))
-  );
-  if (taskFilter === "open") {
-    const rank = (index: number) => orderStates[index] === "carried" ? 0
-      : frame.vehicles.some((vehicle) => vehicle.assignedOrderId === scenario.orders[index].id) ? 1
-      : orderStates[index] === "ready" ? 2 : 3;
-    filteredOrders.sort((a, b) => rank(a.index) - rank(b.index) || a.order.releaseTime - b.order.releaseTime || a.index - b.index);
-  }
-  const openCount = releasedOrders.filter(({ index }) => !["delivered", "expired"].includes(orderStates[index])).length;
-  const fleet = vehicles.map((vehicle, index) => ({
-    id: vehicle.id, label: vehicle.badge, color: vehicle.color,
-    position: vehiclePoint(frame.vehicles[index]), complete,
-    carrying: isVehicleLoaded(frame.vehicles[index]),
-  }));
-  const sceneFrame: MazeFrame = {
-    time, animate: playing, stepDuration, fleet, highlightedOrderId: visibleSelectedOrderId,
-    primary: fleet[selectedIndex],
-    routes: currentTaskRoutes(replay, time),
-    notices: fleetNoticesAt(replay, time),
-    blocked: frame.blocked, orderStates,
-    orderColors: scenario.orders.map((order) => {
-      const carrier = frame.vehicles.findIndex((vehicle) => vehicle.carriedOrderId === order.id);
-      return carrier >= 0 ? vehicles[carrier].color : null;
-    }),
-    description: `${vehicles.length} forklifts at simulation step ${time}. ${frame.completedOrders} of ${releasedCount} released tasks delivered. AGV ${selected.badge} at grid cell (${current.position.join(", ")}). ${gridCellHint}`,
-  };
+  const openCount = playback.openOrders.length;
   const seek = (value: number) => { setPlaying(false); setTime(Math.max(0, Math.min(maximumTime, value))); };
   const choose = (id: string) => { setSelectedId(id); setSelectedOrderId(null); };
   const chooseAlgorithm = (id: FleetAlgorithmId) => {
