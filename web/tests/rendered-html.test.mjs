@@ -89,7 +89,7 @@ test("ships all four maps with four shared-world vehicles and no single-car UI",
   assert.equal(fingerprints.size, 4);
   for (const text of ["fetch(algorithm.file", "Factory layout", "chooseLayout", "Inspect forklift", "Task list", "type=\"range\"", "new URLSearchParams", "url.searchParams.set(\"case\""]) assert.ok(page.includes(text), text);
   assert.doesNotMatch(page, /Scenario library|scenario-option|Compare with|demo-data.json|map-mode-switch/);
-  for (const text of ["Fleet status", "Task queue", "algorithmControl", "task-filters", "Collapse fleet panel", "Collapse task panel", "inspectTask", "highlightedOrderId", "Recorded simulation replay"]) assert.ok(page.includes(text), text);
+  for (const text of ["Fleet status", "Task queue", "algorithmControl", "task-filters", "inspectTask", "highlightedOrderId", "Recorded simulation replay"]) assert.ok(page.includes(text), text);
   assert.match(css, /\.control-workspace/);
   assert.match(css, /color-scheme: dark/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
@@ -212,7 +212,7 @@ test("keeps task progress above an independently scrolling task queue without pa
   ]);
   const right = page.slice(page.indexOf('<div className="operations-panel">'));
   assert.match(right, /<TaskProgress replay=\{replay\} time=\{time\}/);
-  assert.ok(right.indexOf('<TaskProgress') < right.indexOf('className={"tasks-panel'), "Task progress precedes Tasks in the right column");
+  assert.ok(right.indexOf('<TaskProgress') < right.indexOf('className="tasks-panel'), "Task progress precedes Tasks in the right column");
   assert.doesNotMatch(right, /chargers-panel|charger-list/);
   assert.match(right, /filteredOrders\.map/);
   assert.match(right, /key=\{replay\.caseId \+ "-" \+ taskFilter\}/);
@@ -241,9 +241,31 @@ test("centers playback and speed controls together as one compact group", async 
   const row = css.match(/\.transport-row \{([^}]+)\}/)[1];
   assert.match(row, /display: flex/);
   assert.match(row, /justify-content: center/);
-  assert.match(row, /gap: 24px/);
+  assert.match(row, /gap: 16px/);
+  assert.match(row, /width: fit-content/);
+  assert.match(row, /margin: 8px auto 0/);
   assert.doesNotMatch(row, /grid-template-columns|space-between/);
   assert.doesNotMatch(css.match(/\.speed-control \{([^}]+)\}/)[1], /margin-left: auto/);
+});
+
+test("uses a quiet graphite playback dock without a framed footer or green primary controls", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const playback = css.slice(css.indexOf('.replay-controls {'), css.indexOf('.task-panel-content {'));
+  const footer = playback.match(/\.replay-controls \{([^}]+)\}/)[1];
+  assert.match(footer, /border: 0/);
+  assert.match(footer, /background: transparent/);
+  assert.doesNotMatch(playback, /var\(--accent\)|#c9ee96|#ddf5b9|#e2f7c4/);
+  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #394650;[^}]*border-radius: 9px/);
+  assert.match(playback, /\.transport-controls \.play-button:hover:not\(:disabled\)/);
+  assert.match(playback, /\.speed-control \{[^}]*border-left: 1px solid/);
+  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #35424c/);
+  assert.match(playback, /\.replay-controls :is\(button, input\):focus-visible \{ outline: 2px solid var\(--replay-highlight\)/);
+  assert.match(playback, /::-webkit-slider-runnable-track \{[^}]*var\(--replay-highlight\)/);
+  assert.match(playback, /::-moz-range-progress \{[^}]*var\(--replay-highlight\)/);
+  for (const retained of ['aria-label="Restart replay"', 'aria-label="Previous time step"', 'aria-label="Next time step"', 'aria-keyshortcuts="Space"', 'onChange={(event) => seek(Number(event.target.value))}', 'aria-pressed={speed === rate}', 'onClick={() => setSpeed(rate)}']) assert.ok(page.includes(retained), retained);
 });
 
 test("omits the bottom legend while keeping scene markers and charger status", async () => {
@@ -268,7 +290,7 @@ test("gives every charging station its own status-colored charger icon", async (
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ui-icon.tsx", import.meta.url), "utf8"),
   ]);
-  const cards = page.slice(page.indexOf('scenario.chargingStations.map'), page.indexOf('<aside className={"fleet-panel'));
+  const cards = page.slice(page.indexOf('scenario.chargingStations.map'), page.indexOf('<aside className="fleet-panel'));
   assert.match(cards, /className="charger-symbol"><Icon name="charger"/);
   assert.doesNotMatch(cards, /<Icon name="bolt"/);
   assert.match(icons, /charger: "M2 21h13/);
@@ -412,13 +434,29 @@ test("keeps chargers above an independently scrolling fleet and retains task his
   assert.match(sidebar, /chargingStationState\(station, frame\)/);
   for (const copy of ["Charging", "Occupied", "Unoccupied", "Vehicle battery level", "Inspect AGV"]) assert.ok(sidebar.includes(copy), copy);
   assert.doesNotMatch(sidebar, /TaskProgress|dock-status/);
-  assert.match(sidebar, /tabIndex=\{0\} data-fleet-scroll hidden=\{fleetCollapsed\}/);
+  assert.match(sidebar, /tabIndex=\{0\} data-fleet-scroll>/);
   assert.match(page, /closest\([^\n]+\[data-fleet-scroll\]/);
-  assert.doesNotMatch(page + css, /fleet-is-collapsed/);
   for (const copy of ['Task progress', 'role="img"', 'aria-labelledby=', 'taskHistory(replay, time)', 'Released', 'Delivered']) assert.ok(progress.includes(copy), copy);
   assert.match(css, /\.fleet-cards \{[^}]*overflow-y: auto;[^}]*overscroll-behavior-y: contain/);
   assert.match(css, /\.vehicle-card \{[^}]*flex: 0 0 auto;[^}]*min-height: 124px/);
-  assert.match(css, /\.fleet-panel\.is-collapsed \{ flex: 0 0 54px/);
+});
+
+test("keeps fleet and task panels permanently expanded without collapse controls", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(page + css, /fleetCollapsed|setFleetCollapsed|tasksCollapsed|setTasksCollapsed|collapse-button|is-collapsed|(?:Expand|Collapse) (?:fleet|task) panel/);
+  for (const panel of ["fleet", "tasks"]) {
+    const start = page.indexOf(`<aside className="${panel}-panel side-panel"`);
+    assert.ok(start >= 0, `${panel} panel keeps a fixed, expanded class`);
+    const content = page.slice(start, page.indexOf("</aside>", start));
+    const heading = content.match(/<header className="side-heading">[\s\S]*?<\/header>/)?.[0];
+    assert.ok(heading, `${panel} retains its heading`);
+    assert.doesNotMatch(heading, /<button|aria-expanded/);
+    assert.doesNotMatch(content, /\shidden(?:=|\s|>)/);
+  }
+  assert.match(page, /<div className="task-panel-content">/);
 });
 
 test("gives the scene symmetric bounds with floating title and camera tools", async () => {

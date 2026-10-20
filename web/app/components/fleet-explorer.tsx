@@ -38,8 +38,6 @@ export default function FleetExplorer() {
   const [speed, setSpeed] = useState<(typeof speeds)[number]>(1);
   const [taskFilter, setTaskFilter] = useState<"all" | "open" | "done">("open");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [fleetCollapsed, setFleetCollapsed] = useState(false);
-  const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const replay = gallery?.cases.find((item) => item.caseId === caseId) ?? gallery?.cases[0] ?? null;
   const maximumTime = replay ? replay.frames.length - 1 : 0;
   const stepDuration = Math.round(260 / speed);
@@ -231,11 +229,9 @@ export default function FleetExplorer() {
               })}
             </ul>
           </section>
-        <aside className={"fleet-panel side-panel " + (fleetCollapsed ? "is-collapsed" : "")} aria-label="Fleet status" data-state={fleetTone} style={{ "--status-color": statusColors[fleetTone] } as CSSProperties}>
-          <header className="side-heading"><h2 title={"Fleet: " + statusToneHints[fleetTone]}><Icon name="robot" />Fleet</h2>
-            <button className="collapse-button" onClick={() => setFleetCollapsed((value) => !value)} aria-expanded={!fleetCollapsed} aria-label={fleetCollapsed ? "Expand fleet panel" : "Collapse fleet panel"} title={fleetCollapsed ? "Expand fleet panel" : "Collapse fleet panel"}><Icon name="arrow" /></button>
-          </header>
-          <div className="fleet-cards" role="group" aria-label="Inspect forklift" tabIndex={0} data-fleet-scroll hidden={fleetCollapsed}>
+        <aside className="fleet-panel side-panel" aria-label="Fleet status" data-state={fleetTone} style={{ "--status-color": statusColors[fleetTone] } as CSSProperties}>
+          <header className="side-heading"><h2 title={"Fleet: " + statusToneHints[fleetTone]}><Icon name="robot" />Fleet</h2></header>
+          <div className="fleet-cards" role="group" aria-label="Inspect forklift" tabIndex={0} data-fleet-scroll>
             {vehicles.map((vehicle, index) => {
               const robot = frame.vehicles[index];
               const level = Math.round(robot.battery / scenario.batteryCapacity * 100);
@@ -284,9 +280,9 @@ export default function FleetExplorer() {
 
         <div className="operations-panel">
           <TaskProgress replay={replay} time={time} />
-          <aside className={"tasks-panel side-panel " + (tasksCollapsed ? "is-collapsed" : "")} aria-label="Task queue">
-            <header className="side-heading"><h2><Icon name="box" />Tasks <small title="Released tasks">{releasedCount}</small></h2><button className="collapse-button" onClick={() => setTasksCollapsed((value) => !value)} aria-expanded={!tasksCollapsed} aria-label={tasksCollapsed ? "Expand task panel" : "Collapse task panel"} title={tasksCollapsed ? "Expand task panel" : "Collapse task panel"}><Icon name="arrow" /></button></header>
-            <div className="task-panel-content" hidden={tasksCollapsed}>
+          <aside className="tasks-panel side-panel" aria-label="Task queue">
+            <header className="side-heading"><h2><Icon name="box" />Tasks <small title="Released tasks">{releasedCount}</small></h2></header>
+            <div className="task-panel-content">
               <nav className="task-filters" aria-label="Task filters">{(["all", "open", "done"] as const).map((filter) => <button key={filter} className={taskFilter === filter ? "is-active" : ""} aria-pressed={taskFilter === filter} onClick={() => setTaskFilter(filter)} data-filter={filter}>{filter === "all" ? "All" : filter === "open" ? "Open" : "Delivered"}<span>{filter === "all" ? releasedCount : filter === "open" ? openCount : frame.completedOrders}</span></button>)}</nav>
               <ol key={replay.caseId + "-" + taskFilter} className="task-list" aria-label="Task list" tabIndex={0} data-task-scroll>
                 {filteredOrders.map(({ order, index }) => {

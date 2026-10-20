@@ -61,9 +61,6 @@ small { font-size: 10px; font-weight: 400; }
 .side-heading h2 > .icon { width: 15px; height: 15px; color: var(--faint); }
 .fleet-panel .side-heading h2, .fleet-panel .side-heading h2 > .icon { color: var(--status-color); transition: color 180ms; }
 .side-heading h2 small { font-size: 10px; color: var(--muted); min-width: 22px; padding: 1px 5px; text-align: center; border-radius: 5px; background: #ffffff07; }
-.collapse-button { display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--faint); padding: 0; width: 24px; }
-.collapse-button:hover { color: var(--ink); background: #ffffff08; }
-.collapse-button .icon { width: 12px; height: 12px; }
 .fleet-cards { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; padding: 3px 8px 8px; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: #52616a transparent; scrollbar-gutter: stable; scroll-padding-block: 3px; }
 .fleet-cards:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
 .vehicle-card { position: relative; display: flex; flex-direction: column; flex: 0 0 auto; justify-content: space-between; gap: 5px; min-width: 0; min-height: 124px; padding: 9px 10px; border: 1px solid transparent; border-radius: 11px; background: #1b232a; text-align: left; }
@@ -114,10 +111,6 @@ small { font-size: 10px; font-weight: 400; }
 .charger-vehicle .icon { width: 10px; height: 10px; }
 .charger-location { display: flex; align-items: center; min-height: 22px; font-size: 10px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .tasks-panel { flex: 1; }
-.tasks-panel .collapse-button .icon, .fleet-panel .collapse-button .icon { transform: rotate(-90deg); }
-.tasks-panel.is-collapsed, .fleet-panel.is-collapsed { flex: 0 0 54px; }
-.tasks-panel.is-collapsed .side-heading, .fleet-panel.is-collapsed .side-heading { flex: 1; flex-direction: row; justify-content: space-between; padding: 0 16px; gap: 8px; }
-.tasks-panel.is-collapsed .collapse-button .icon, .fleet-panel.is-collapsed .collapse-button .icon { transform: rotate(90deg); }
 
 .map-panel { position: relative; display: flex; flex-direction: column; background: radial-gradient(ellipse at 50% 35%, #242e31, #11181c 76%); box-shadow: inset 0 1px #ffffff03, 0 12px 32px #00000012; }
 .map-heading { position: absolute; top: 0; left: 0; right: 0; height: 54px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 20px; pointer-events: none; }
@@ -169,30 +162,32 @@ small { font-size: 10px; font-weight: 400; }
 .scene-error > svg { color: var(--accent); }
 .scene-error button, .error-shell button { padding: 6px 16px; border: 1px solid #c9ee9620; border-radius: 7px; background: #c9ee9610; color: var(--accent); }
 
-.replay-controls { flex: 0 0 auto; margin: 0 14px 14px; border: 1px solid #ffffff08; border-radius: 12px; padding: 9px 14px 6px; background: #0e151bbf; }
+.replay-controls { --replay-highlight: #b6c5d0; --replay-track: #303b44; flex: 0 0 auto; margin: 0 18px 14px; border: 0; padding: 4px 4px 0; background: transparent; }
+.replay-controls :is(button, input):focus-visible { outline: 2px solid var(--replay-highlight); outline-offset: 3px; }
 .timeline-control { position: relative; height: 20px; margin: 0 4px; }
-.timeline-control input { appearance: none; position: relative; z-index: 2; display: block; width: 100%; height: 20px; margin: 0; cursor: pointer; background: transparent; }
-.timeline-control input::-webkit-slider-runnable-track { height: 3px; background: linear-gradient(90deg, var(--accent) var(--timeline-progress), #36434c var(--timeline-progress)); border-radius: 2px; }
-.timeline-control input::-webkit-slider-thumb { appearance: none; width: 9px; height: 9px; margin-top: -3px; border-radius: 50%; background: #e2f7c4; border: 2px solid var(--accent); }
-.timeline-control input::-moz-range-track { height: 3px; background: #36434c; }
-.timeline-control input::-moz-range-progress { height: 3px; background: var(--accent); }
-.timeline-control input::-moz-range-thumb { width: 7px; height: 7px; border: 1px solid var(--accent); border-radius: 50%; background: #e2f7c4; }
+.timeline-control input { appearance: none; position: relative; z-index: 2; display: block; width: 100%; height: 20px; margin: 0; border-radius: 4px; cursor: pointer; background: transparent; }
+.timeline-control input::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(90deg, var(--replay-highlight) var(--timeline-progress), var(--replay-track) var(--timeline-progress)); border-radius: 2px; }
+.timeline-control input::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; margin-top: -3px; border-radius: 50%; background: #e0e7ec; border: 0; box-shadow: 0 0 0 3px #b6c5d00d; }
+.timeline-control input::-moz-range-track { height: 2px; border-radius: 2px; background: var(--replay-track); }
+.timeline-control input::-moz-range-progress { height: 2px; border-radius: 2px; background: var(--replay-highlight); }
+.timeline-control input::-moz-range-thumb { width: 8px; height: 8px; border: 0; border-radius: 50%; background: #e0e7ec; box-shadow: 0 0 0 3px #b6c5d00d; }
 .timeline-events { position: absolute; inset: 0; pointer-events: none; }
 .timeline-event { position: absolute; top: calc(-3px + var(--event-lane) * 19px); min-height: 6px; width: 6px; height: 6px; padding: 0; transform: translateX(-50%); border: 0; background: transparent; pointer-events: auto; z-index: 3; }
 .timeline-event::after { content: ""; display: block; width: 3px; height: 3px; margin: auto; border-radius: 1px; background: #7c939e; }
 .timeline-event.event-cell_blocked::after { background: #d7967e; }
 .timeline-event.event-order_arrival::after { background: #96af86; }
-.transport-row { display: flex; align-items: center; justify-content: center; gap: 24px; margin-top: 6px; }
+.transport-row { display: flex; align-items: center; justify-content: center; gap: 16px; width: fit-content; max-width: 100%; margin: 8px auto 0; padding: 5px 7px; border: 1px solid #ffffff0d; border-radius: 13px; background: linear-gradient(180deg, #202930f2, #192127f2); box-shadow: inset 0 1px #ffffff04, 0 4px 14px #0000001a; }
 .transport-controls { display: flex; align-items: center; gap: 4px; }
-.transport-controls button { display: grid; place-items: center; min-height: 32px; width: 28px; padding: 0; border: 0; background: transparent; color: var(--muted); border-radius: 7px; }
+.transport-controls button { display: grid; place-items: center; min-height: 32px; width: 30px; padding: 0; border: 0; background: transparent; color: var(--muted); border-radius: 8px; }
 .transport-controls button:hover:not(:disabled) { background: #ffffff0a; color: var(--ink); }
 .transport-controls .icon { width: 13px; height: 13px; }
-.transport-controls .play-button { min-height: 34px; width: 34px; background: var(--accent); color: #213019; border-radius: 50%; margin: 0 3px; box-shadow: 0 2px 10px #c9ee9610; }
-.transport-controls .play-button:hover:not(:disabled) { background: #ddf5b9; color: #213019; }
+.transport-controls .play-button { min-height: 34px; width: 36px; background: #394650; color: #edf2f5; border-radius: 9px; margin: 0 2px; box-shadow: inset 0 1px #ffffff10, 0 1px 3px #00000024; }
+.transport-controls .play-button:hover:not(:disabled) { background: #465560; color: #ffffff; }
 .transport-controls .play-button .icon { width: 15px; height: 15px; }
-.speed-control { display: flex; border: 1px solid #ffffff08; background: #ffffff03; border-radius: 7px; padding: 3px; }
-.speed-control button { min-height: 23px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 10px; }
-.speed-control .is-active { color: var(--accent); background: #c9ee9610; }
+.speed-control { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; border: 0; border-left: 1px solid #ffffff10; padding: 2px 0 2px 14px; }
+.speed-control button { min-height: 28px; min-width: 34px; padding: 0 7px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.speed-control button:hover:not(:disabled) { background: #ffffff07; color: var(--ink); }
+.speed-control button.is-active { color: #e0e8ee; background: #35424c; box-shadow: inset 0 0 0 1px #ffffff06; }
 
 .task-panel-content { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 10px 14px; }
 .task-filters { display: flex; flex: 0 0 34px; align-items: stretch; margin: 0 0 9px; padding: 3px; border-radius: 9px; background: #0d1319; gap: 2px; }
@@ -308,7 +303,8 @@ small { font-size: 10px; font-weight: 400; }
   .task-panel-content { padding: 0 9px 10px; }
   .task-list { gap: 6px; }
   .task-card { padding: 9px; min-height: 82px; gap: 7px; }
-  .replay-controls { padding-block: 6px 4px; margin: 0 10px 10px; }
+  .replay-controls { padding-block: 2px 0; margin: 0 12px 10px; }
+  .transport-row { margin-top: 6px; padding-block: 4px; }
   .chart-legend { margin: 8px 0 12px; }
 }
 @media (max-width: 900px) {
@@ -317,10 +313,6 @@ small { font-size: 10px; font-weight: 400; }
   .control-workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 4px 12px 12px; gap: 12px; }
   .map-panel { grid-column: 1 / -1; order: -1; min-height: 650px; }
   .fleet-sidebar, .operations-panel { height: 590px; }
-  .side-panel.is-collapsed { height: 56px; }
-  .side-panel.is-collapsed .side-heading { flex-direction: row; justify-content: space-between; padding: 0 14px; gap: 8px; }
-  .side-panel.is-collapsed .side-heading h2 { writing-mode: horizontal-tb; letter-spacing: 0; }
-  .side-panel.is-collapsed .side-heading h2 .icon, .side-panel.is-collapsed .side-heading small { display: inline-block; }
   .vehicle-symbol { display: grid; }
   .vehicle-symbol .forklift-glyph { width: 38px; height: 32px; }
   .task-card { padding: 10px 11px; }
@@ -342,13 +334,13 @@ small { font-size: 10px; font-weight: 400; }
   .map-heading > div { gap: 6px; }
   .playback-status { font-size: 9px; padding-inline: 5px; }
   .map-stage { min-height: 270px; }
-  .replay-controls { margin: 0 8px 8px; padding-inline: 8px; }
-  .transport-row { gap: 14px; }
-  .transport-controls { gap: 1px; }
-  .transport-controls button { width: 22px; }
-  .transport-controls .play-button { min-height: 30px; width: 30px; margin-inline: 2px; }
-  .speed-control { padding: 2px; }
-  .speed-control button { padding-inline: 4px; font-size: 9px; }
+  .replay-controls { margin: 0 8px 10px; padding-inline: 0; }
+  .transport-row { gap: 10px; padding-inline: 5px; }
+  .transport-controls { gap: 2px; }
+  .transport-controls button { width: 28px; }
+  .transport-controls .play-button { min-height: 32px; width: 32px; margin-inline: 1px; }
+  .speed-control { gap: 2px; padding-left: 10px; }
+  .speed-control button { min-width: 30px; padding-inline: 4px; font-size: 10px; }
   .fleet-sidebar { height: 670px; }
   .operations-panel { height: 670px; }
   .fleet-cards { gap: 9px; }
