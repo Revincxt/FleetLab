@@ -4,21 +4,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { MazeFrame, MazeScenario } from "./maze-model";
 import type { WarehouseRenderer } from "./warehouse-renderer";
 import type { WorkerTrafficFrame } from "./workforce-model";
-
-const cameraIcons = {
-  top: "M12 3v8m-3-3 3 3 3-3M3 17l9-4 9 4-9 4-9-4Z",
-  reset: "m12 3 8 5v8l-8 5-8-5V8l8-5ZM4 8l8 5 8-5M12 13v8",
-  minus: "M5 12h14",
-  plus: "M5 12h14M12 5v14",
-};
-
-function CameraIcon({ name }: { name: keyof typeof cameraIcons }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={cameraIcons[name]} />
-    </svg>
-  );
-}
+import { Icon } from "./ui-icon";
 
 function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
   scenario: MazeScenario;
@@ -77,7 +63,7 @@ function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
       {status === "loading" ? <div className="scene-loading" role="status">Loading factory…</div> : null}
       {status === "unavailable" ? (
         <div className="scene-error" role="alert">
-          <CameraIcon name="top" />
+          <Icon name="top" />
           <strong>3D scene unavailable</strong>
           <p>Check WebGL and hardware acceleration in your browser.</p>
           <button onClick={() => { setStatus("loading"); setAttempt((value) => value + 1); }}>Retry</button>
@@ -85,19 +71,19 @@ function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
       ) : null}
       {ready ? <div className="scene-camera-tools">
         <div className="camera-controls" role="group" aria-label="3D camera controls">
-          <button disabled={!ready} onClick={() => runtime.current?.topView()} aria-label="Top view" title="Top view">
-            <CameraIcon name="top" />
+          <button onClick={() => runtime.current?.topView()} aria-label="Top view" title="Top view">
+            <Icon name="top" />
           </button>
-          <button disabled={!ready} onClick={() => runtime.current?.reset()} aria-label="Reset camera" title="Reset 3D view (Home)">
-            <CameraIcon name="reset" />
+          <button onClick={() => runtime.current?.reset()} aria-label="Reset camera" title="Reset 3D view (Home)">
+            <Icon name="reset" />
           </button>
           <span className="camera-divider" aria-hidden="true" />
-          <button disabled={!ready || zoom >= 275} onClick={() => runtime.current?.zoomBy(1.2)} aria-label="Zoom in" title="Zoom in (+)">
-            <CameraIcon name="plus" />
+          <button disabled={zoom >= 275} onClick={() => runtime.current?.zoomBy(1.2)} aria-label="Zoom in" title="Zoom in (+)">
+            <Icon name="plus" />
           </button>
           <output aria-label="Camera zoom">{zoom}%</output>
-          <button disabled={!ready || zoom <= 65} onClick={() => runtime.current?.zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out (−)">
-            <CameraIcon name="minus" />
+          <button disabled={zoom <= 65} onClick={() => runtime.current?.zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out (−)">
+            <Icon name="minus" />
           </button>
         </div>
       </div> : null}

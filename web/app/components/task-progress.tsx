@@ -3,6 +3,7 @@
 import { memo, useId, useMemo } from "react";
 import type { FleetReplay } from "./fleet-model";
 import { chartCeiling, taskAreaPath, taskHistory, taskStepPath } from "./task-progress-model";
+import { Icon } from "./ui-icon";
 
 function TaskProgress({ replay, time }: { replay: FleetReplay; time: number }) {
   const chartId = useId();
@@ -13,7 +14,7 @@ function TaskProgress({ replay, time }: { replay: FleetReplay; time: number }) {
 
   return <section className="task-progress-panel side-panel" aria-labelledby={`${chartId}-heading`}>
     <header className="chart-heading">
-      <h2 id={`${chartId}-heading`}>Task progress</h2>
+      <h2 id={`${chartId}-heading`}><Icon name="chart" />Task progress</h2>
       <div className="chart-legend" aria-label="Task totals at selected step">
         <span className="series-released"><span className="chart-legend-label">Released</span><i aria-hidden="true" /><strong>{latest.released}</strong></span>
         <span className="series-delivered"><span className="chart-legend-label">Delivered</span><i aria-hidden="true" /><strong>{latest.delivered}</strong></span>

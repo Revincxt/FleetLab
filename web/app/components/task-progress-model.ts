@@ -2,7 +2,13 @@ import type { FleetReplay } from "./fleet-model";
 
 export type TaskHistoryPoint = { time: number; released: number; delivered: number };
 
-type HistoryIndex = { through: number; changes: { index: number; point: TaskHistoryPoint }[] };
+type HistoryIndex = {
+  through: number;
+  changes: { index: number; point: TaskHistoryPoint }[];
+  orderStates?: FleetReplay["frames"][number]["orderStates"];
+  released: number;
+  nextRelease: number;
+};
 // Parsed replay tapes are immutable. Weak keys release the index when a layout
 // or algorithm is unloaded; only count changes, not entire histories, are kept.
 const histories = new WeakMap<FleetReplay, HistoryIndex>();
@@ -13,16 +19,28 @@ export function taskHistory(replay: FleetReplay, time: number): TaskHistoryPoint
   if (Number.isNaN(end)) return [];
   let history = histories.get(replay);
   if (!history) {
-    history = { through: -1, changes: [] };
+    history = { through: -1, changes: [], released: 0, nextRelease: 0 };
     histories.set(replay, history);
   }
   for (let index = history.through + 1; index <= end; index++) {
     const frame = replay.frames[index];
-    let released = 0;
-    for (const order of replay.scenario.orders) {
-      if (order.releaseTime <= frame.time && frame.orderStates[order.id] !== "pending") released++;
+    const states = frame.orderStates;
+    // Compact tapes share unchanged snapshots. A release-time boundary can
+    // still change visibility, so do not reuse counts across that boundary.
+    if (states !== history.orderStates || frame.time >= history.nextRelease) {
+      history.released = 0;
+      history.nextRelease = Infinity;
+      for (const order of replay.scenario.orders) {
+        const releaseTime = order.releaseTime;
+        if (releaseTime <= frame.time) {
+          if (states[order.id] !== "pending") history.released++;
+        } else {
+          history.nextRelease = Math.min(history.nextRelease, releaseTime);
+        }
+      }
+      history.orderStates = states;
     }
-    const point = { time: frame.time, released, delivered: frame.completedOrders };
+    const point = { time: frame.time, released: history.released, delivered: frame.completedOrders };
     const previous = history.changes.at(-1)?.point;
     if (!previous || point.released !== previous.released || point.delivered !== previous.delivered) {
       history.changes.push({ index, point });

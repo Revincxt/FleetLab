@@ -180,6 +180,38 @@ test("task progress retains every recorded count change without revealing future
   }
 });
 
+test("task history reuses unchanged snapshots without skipping release boundaries or pending transitions", () => {
+  const source = gallery.cases[0];
+  const initial = { early: "available", later: "available", pending: "pending" };
+  const changed = { ...initial, pending: "available" };
+  const orders = [
+    { ...source.scenario.orders[0], id: "early", releaseTime: 0 },
+    { ...source.scenario.orders[1], id: "later", releaseTime: 3 },
+    { ...source.scenario.orders[2], id: "pending", releaseTime: 2 },
+  ];
+  const replay = { ...source, scenario: { ...source.scenario, orders }, frames: source.frames.slice(0, 8).map((frame, time) => ({
+    ...frame, completedOrders: 0, orderStates: time < 5 ? initial : changed,
+  })) };
+  for (const [time, released] of [[0, 1], [1, 1], [2, 1], [3, 2], [4, 2], [5, 3], [7, 3], [2, 1]]) {
+    assert.equal(taskHistory(replay, time).at(-1).released, released);
+  }
+});
+
+test("task history avoids rescanning every order on unchanged compact frames", () => {
+  for (const source of gallery.cases) {
+    let releaseChecks = 0;
+    const orders = source.scenario.orders.map(order => ({ ...order, get releaseTime() { releaseChecks++; return order.releaseTime; } }));
+    const replay = { ...source, scenario: { ...source.scenario, orders } };
+    const end = replay.frames.length - 1;
+    assert.equal(taskHistory(replay, end).at(-1).released, 225);
+    assert.ok(releaseChecks < orders.length * replay.frames.length / 2, "Most unchanged snapshots do not need an order scan");
+    const previous = releaseChecks;
+    taskHistory(replay, Math.floor(end / 2));
+    taskHistory(replay, end);
+    assert.equal(releaseChecks, previous, "Rewinding and returning reuse the existing index");
+  }
+});
+
 test("chart scales handle zero data and count paths are stepwise rather than interpolated", () => {
   for (const value of [0, 1, 4, 13, 225, 4800]) {
     const maximum = chartCeiling(value);

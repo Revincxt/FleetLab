@@ -192,6 +192,30 @@ test("uses shared native-like picker menus without focus frames or legacy pointe
   assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
 });
 
+test("gives the full-width header a routing signature and an unframed repository link", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const header = page.slice(page.indexOf('<header className="app-header">'), page.indexOf('</header>'));
+  assert.match(header, /className="brand-name">Fleet<span>Lab<\/span><\/span>/);
+  assert.match(header, /<svg className="header-routes"[^>]*aria-hidden="true" focusable="false"/);
+  assert.match(header, /className="repository-link" href="https:\/\/github\.com\/Revincxt\/FleetLab"/);
+  assert.doesNotMatch(header, /<button|<h[1-6]|role="status"|aria-live|Fleet control|Industrial workspace/);
+  const headerStyle = css.match(/\.app-header \{([^}]+)\}/)[1];
+  assert.match(headerStyle, /position: relative; z-index: 3/);
+  assert.match(headerStyle, /flex: 0 0 64px; margin: 0;/);
+  assert.match(headerStyle, /border: 0; border-bottom: 1px solid[^;]+; border-radius: 0/);
+  assert.doesNotMatch(headerStyle, /overflow: hidden/);
+  assert.doesNotMatch(css, /\.app-header \{[^}]*margin-inline/);
+  assert.match(css, /\.header-routes \{[^}]*pointer-events: none/);
+  assert.doesNotMatch(css.match(/\.header-actions \{([^}]+)\}/)[1], /border:|background:|box-shadow:/);
+  assert.match(css, /\.repository-link \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none/);
+  assert.doesNotMatch(css.match(/\.repository-link:hover \{([^}]+)\}/)[1], /background:|border:|box-shadow:/);
+  assert.doesNotMatch(css, /\.repository-link::before/);
+  assert.match(css, /@media \(max-width: 900px\) \{[^}]*\}\s*\.header-routes \{ display: none/);
+});
+
 test("picker menus close after pointer exit without trapping keyboard focus or touch input", async () => {
   const picker = await readFile(new URL("../app/components/compact-picker.tsx", import.meta.url), "utf8");
   for (const retained of ['role="combobox"', 'role="listbox"', 'role="option"', 'aria-expanded={expanded}', 'aria-activedescendant=', 'aria-selected={option.value === value}', 'key === "Tab"', 'key === "Escape"', 'key === "Enter"', '"ArrowDown", "ArrowUp", "Home", "End"']) {
@@ -234,7 +258,7 @@ test("shares a distinctive routing mark and fleet colors without adding decorati
   assert.match(mark, /viewBox="0 0 40 40"/);
   assert.match(mark, /aria-hidden="true" focusable="false"/);
   assert.match(page, /<BrandMark/);
-  assert.match(page, /className="brand-name">FleetLab</);
+  assert.match(page, /className="brand-name">Fleet<span>Lab<\/span><\/span>/);
   assert.match(page, /className="loading-mark">FleetLab</);
   assert.match(page, /aria-label="FleetLab home"/);
   assert.doesNotMatch(page, />adaptive<|Adaptive Agent Lab home/);
@@ -271,6 +295,8 @@ test("keeps task progress above an independently scrolling task queue without pa
   assert.ok(right.indexOf('<TaskProgress') < right.indexOf('className="tasks-panel'), "Task progress precedes Tasks in the right column");
   assert.doesNotMatch(right, /chargers-panel|charger-list/);
   assert.match(right, /filteredOrders\.map/);
+  assert.match(right, /<h2><Icon name="box" \/>Tasks<\/h2>/);
+  assert.doesNotMatch(right + css, /title="Released tasks"|\.side-heading h2 small/);
   assert.match(right, /key=\{replay\.caseId \+ "-" \+ taskFilter\}/);
   assert.match(right, /aria-label="Task list" tabIndex=\{0\} data-task-scroll/);
   assert.match(css, /\.task-list \{[^}]*overflow-y: auto;[^}]*overscroll-behavior-y: contain/);
@@ -293,6 +319,20 @@ test("groups compact task totals in the chart header without a redundant percent
   assert.match(css, /\.chart-heading h2 \{ font-size: var\(--text-title\)/);
   assert.match(css, /\.chart-legend > span \{[^}]*font-size: var\(--text-caption\)/);
   assert.match(css, /\.chart-legend strong \{ font-size: var\(--text-value\); font-weight: 600;[^}]*font-variant-numeric: tabular-nums/);
+});
+
+test("gives task progress a matching decorative panel-heading icon", async () => {
+  const [progress, icons, css] = await Promise.all([
+    readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ui-icon.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(progress, /import \{ Icon \} from "\.\/ui-icon"/);
+  assert.match(progress, /<h2 id=\{`\$\{chartId\}-heading`\}><Icon name="chart" \/>Task progress<\/h2>/);
+  assert.match(icons, /chart: "[^"]+"/);
+  assert.match(icons, /aria-hidden="true"/);
+  assert.match(css, /\.side-heading h2 > \.icon, \.chart-heading h2 > \.icon \{ width: 15px; height: 15px; flex: 0 0 auto; color: var\(--faint\)/);
+  assert.match(css, /\.chart-heading h2 \{[^}]*display: flex; align-items: center; gap: 9px; min-width: 0/);
 });
 
 test("omits transport readouts and gives fleet activity and battery their own dynamic colors", async () => {
@@ -495,12 +535,46 @@ test("forklift speech bubbles follow rendered positions and preserve camera inte
   ]);
   assert.match(page, /notices: fleetNoticesAt\(replay, time\)/);
   assert.match(renderer, /this\.notices\?\.step\(frame\.time, frame\.notices, now\)/);
-  assert.match(renderer, /robot\.group\.position\.clone\(\).*project\(this\.camera\)/);
+  assert.match(renderer, /this\.positionScratch\.copy\(robot\.group\.position\);\s+point\.y \+= 1\.65;\s+point\.project\(this\.camera\)/);
   assert.match(renderer, /this\.notices\?\.dispose\(\)/);
   assert.match(notices, /setAttribute\("aria-live", "polite"\)/);
   assert.match(notices, /clearTimeout\(this\.wakeup\)/);
   assert.match(css, /\.forklift-notices \{[^}]*pointer-events: none/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{ \.forklift-notice \{ animation: none/);
+});
+
+test("shares immutable charger resources and reuses scratch vectors in the animation loop", async () => {
+  const renderer = await readFile(new URL("../app/components/warehouse-renderer.ts", import.meta.url), "utf8");
+  assert.match(renderer, /private readonly positionScratch = new THREE\.Vector3\(\)/);
+  assert.match(renderer, /const chargerLabelGeometry = this\.geometry/);
+  assert.match(renderer, /const chargerLabelMaterial = this\.material/);
+  const chargers = renderer.slice(renderer.indexOf("this.scenario.chargingStations.forEach"), renderer.indexOf("// Shared floor stencils"));
+  assert.match(chargers, /new THREE\.Mesh\(chargerLabelGeometry, chargerLabelMaterial\)/);
+  assert.doesNotMatch(chargers, /this\.labelTexture\(|new THREE\.PlaneGeometry|new THREE\.MeshBasicMaterial/);
+  for (const [start, end] of [["private advanceRobot", "private updateTrailTip"], ["private updatePlannedLead", "private updateWorkers"], ["private advanceWorkers", "private makeClosure"]]) {
+    assert.doesNotMatch(renderer.slice(renderer.indexOf(start), renderer.indexOf(end)), /new THREE\.Vector3|\.clone\(/);
+  }
+  for (const retained of ["this.geometries.forEach", "this.materials.forEach", "this.textures.forEach"]) assert.ok(renderer.includes(retained), retained);
+});
+
+test("uses the shared icon renderer and avoids redundant ready guards in visible camera controls", async () => {
+  const [scene, icons, css] = await Promise.all([
+    readFile(new URL("../app/components/warehouse-scene.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ui-icon.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(scene, /import \{ Icon \} from "\.\/ui-icon"/);
+  for (const name of ["top", "reset", "minus", "plus"]) {
+    assert.ok(scene.includes(`<Icon name="${name}" />`), name);
+    assert.ok(icons.includes(`${name}: "`), name);
+  }
+  assert.match(scene, /\{ready \? <div className="scene-camera-tools">/);
+  assert.match(scene, /disabled=\{zoom >= 275\}/);
+  assert.match(scene, /disabled=\{zoom <= 65\}/);
+  assert.doesNotMatch(scene, /CameraIcon|cameraIcons|disabled=\{!ready/);
+  assert.doesNotMatch(css, /\.sr-only|\bcaption \{/);
+  assert.match(css, /\.camera-controls svg \{ width: 17px; height: 17px/);
+  assert.match(css, /\.scene-error > svg \{ width: 16px; height: 16px/);
 });
 
 test("removes the Statistics view and its unused styles while retaining the map and algorithms", async () => {
@@ -560,6 +634,15 @@ test("gives the scene symmetric bounds with floating title and camera tools", as
   assert.match(css, /\.map-heading \{ position: absolute; top: 0; left: 0; right: 0;/);
   assert.match(css, /\.map-heading \{[^}]*pointer-events: none/);
   assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 10px; bottom: 10px;/);
+});
+
+test("uses the header-to-panel spacing for all outer panel gaps and screen insets", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /--workspace-gap: 8px;/);
+  assert.match(css, /\.control-workspace \{[^}]*gap: var\(--workspace-gap\); padding: var\(--workspace-gap\)/);
+  for (const component of ["fleet-sidebar", "operations-panel"]) assert.match(css, new RegExp(`\\.${component} \\{[^}]*gap: var\\(--workspace-gap\\)`));
+  const responsive = css.slice(css.indexOf("@media (max-width: 1300px)"));
+  assert.doesNotMatch(responsive, /\.(?:control-workspace|fleet-sidebar|operations-panel) \{[^}]*(?:\bgap:|\bpadding(?:-\w+)?:)/);
 });
 
 test("gives task progress translucent areas and accurately positioned axis ticks", async () => {

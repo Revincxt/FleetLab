@@ -84,6 +84,7 @@ export class WarehouseRenderer {
   private readonly routeStart = new THREE.Vector3();
   private readonly routeEnd = new THREE.Vector3();
   private readonly routeDirection = new THREE.Vector3();
+  private readonly positionScratch = new THREE.Vector3();
   private readonly robots = new Map<string, RobotVisual>();
   private readonly workers: WorkerPresentation[] = [];
   private readonly trailDirection = new THREE.Vector3();
@@ -246,10 +247,12 @@ export class WarehouseRenderer {
     this.renderer.domElement.dataset.factoryMachines = String(fixtures.machines);
     const markerGeometry = this.geometry(new THREE.BoxGeometry(0.82, 0.009, 0.82));
     const chargerMaterial = this.standard(0x547369);
+    const chargerLabelGeometry = this.geometry(new THREE.PlaneGeometry(0.40, 0.40));
+    const chargerLabelMaterial = this.material(new THREE.MeshBasicMaterial({ map: this.labelTexture("charge", "#aec7b9", "#253b35"), transparent: true, depthWrite: false, toneMapped: false }));
     this.scenario.chargingStations.forEach((point) => {
       const disc = new THREE.Mesh(markerGeometry, chargerMaterial);
       disc.position.copy(this.world(point, 0.009));
-      const label = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(0.40, 0.40)), this.material(new THREE.MeshBasicMaterial({ map: this.labelTexture("charge", "#aec7b9", "#253b35"), transparent: true, depthWrite: false, toneMapped: false })));
+      const label = new THREE.Mesh(chargerLabelGeometry, chargerLabelMaterial);
       label.rotation.x = -Math.PI / 2;
       label.position.copy(this.world(point, 0.02));
       this.scene.add(disc, label);
@@ -496,7 +499,7 @@ export class WarehouseRenderer {
   private advanceRobot(visual: RobotVisual, now: number) {
     if (!visual.motion) return;
     const sample = sampleRobotMotion(visual.motion, now);
-    const position = this.world(sample.position);
+    const position = this.world(sample.position, 0, this.positionScratch);
     const distance = visual.group.position.distanceTo(position);
     visual.wheels.forEach(wheel => { wheel.rotation.x += distance / 0.105; });
     visual.group.position.copy(position);
@@ -532,22 +535,23 @@ export class WarehouseRenderer {
     const lead = route.plannedLead;
     route.plannedLeadMesh.count = route.plannedLeadOutline.count = 0;
     if (!lead) return;
-    const from = this.world(lead.edge.from);
+    const from = this.world(lead.edge.from, 0, this.positionScratch);
     const progress = Math.min(1, from.distanceTo(lead.robot.group.position));
     const segments = dashedRouteSegments([lead.edge], progress);
     const transform = this.leadTransform;
     segments.forEach((segment, index) => {
-      const start = this.world(segment.from, ROUTE_ELEVATION).add(route.planned.offset);
-      const end = this.world(segment.to, ROUTE_ELEVATION).add(route.planned.offset);
+      const start = this.world(segment.from, ROUTE_ELEVATION, this.routeStart).add(route.planned.offset);
+      const end = this.world(segment.to, ROUTE_ELEVATION, this.routeEnd).add(route.planned.offset);
       // The first remaining dash joins the real interpolated forklift position.
-      const clippedPoint = this.world(segment.from);
+      const clippedPoint = this.world(segment.from, 0, this.positionScratch);
       if (clippedPoint.distanceTo(lead.robot.group.position) < 0.0001) {
         start.copy(lead.robot.group.position); start.y = ROUTE_ELEVATION;
       }
-      const direction = end.clone().sub(start);
+      const direction = this.routeDirection.subVectors(end, start);
+      const length = direction.length();
       transform.position.copy(start).add(end).multiplyScalar(0.5);
-      transform.quaternion.setFromUnitVectors(this.up, direction.clone().normalize());
-      transform.scale.set(1, direction.length(), 1);
+      transform.quaternion.setFromUnitVectors(this.up, direction.normalize());
+      transform.scale.set(1, length, 1);
       transform.updateMatrix();
       route.plannedLeadMesh.setMatrixAt(index, transform.matrix);
       route.plannedLeadOutline.setMatrixAt(index, transform.matrix);
@@ -590,7 +594,7 @@ export class WarehouseRenderer {
         if (progress === 1) worker.motion = null;
         else moving = true;
       }
-      worker.visual.group.position.copy(this.world(worker.pose.position));
+      worker.visual.group.position.copy(this.world(worker.pose.position, 0, this.positionScratch));
       poseWorker(worker.visual, worker.pose);
     }
     return moving;
@@ -835,7 +839,9 @@ export class WarehouseRenderer {
     this.renderer.render(this.scene, this.camera);
     this.notices?.draw(now, [...this.robots].flatMap(([vehicleId, robot]) => {
       if (!robot.group.visible) return [];
-      const point = robot.group.position.clone().add(new THREE.Vector3(0, 1.65, 0)).project(this.camera);
+      const point = this.positionScratch.copy(robot.group.position);
+      point.y += 1.65;
+      point.project(this.camera);
       if (Math.abs(point.x) > 1 || Math.abs(point.y) > 1 || Math.abs(point.z) > 1) return [];
       return [{ vehicleId, label: this.previous?.fleet.find(item => item.id === vehicleId)?.label ?? vehicleId,
         color: robot.color, x: (point.x + 1) * this.sceneWidth / 2, y: (1 - point.y) * this.sceneHeight / 2 }];

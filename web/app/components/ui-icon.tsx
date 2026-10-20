@@ -1,6 +1,11 @@
 const iconPaths = {
   grid: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
   box: "m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M7.5 5.5l9 5",
+  chart: "M4 3v17h17M8 15l4-4 4 2 5-7",
+  top: "M12 3v8m-3-3 3 3 3-3M3 17l9-4 9 4-9 4-9-4Z",
+  reset: "m12 3 8 5v8l-8 5-8-5V8l8-5ZM4 8l8 5 8-5M12 13v8",
+  minus: "M5 12h14",
+  plus: "M5 12h14M12 5v14",
   play: "m9 5 11 7-11 7V5Z",
   pause: "M8 5v14M16 5v14",
   back: "m15 5-9 7 9 7M4 5v14",

@@ -200,12 +200,19 @@ export default function FleetExplorer() {
       <header className="app-header">
         <a className="brand" href="#workspace" aria-label="FleetLab home">
           <span className="brand-mark"><BrandMark /></span>
-          <span className="brand-name">FleetLab</span>
+          <span className="brand-name">Fleet<span>Lab</span></span>
         </a>
+        <svg className="header-routes" viewBox="0 0 360 32" fill="none" aria-hidden="true" focusable="false">
+          <path d="M0 16h360" stroke="currentColor" strokeOpacity=".12" />
+          <path d="M48 16h64a8 8 0 0 0 8-8h64a8 8 0 0 1 8 8h120" stroke="currentColor" strokeOpacity=".38" />
+          <path d="M96 16h104a8 8 0 0 1 8 8h40a8 8 0 0 0 8-8h40" stroke="currentColor" strokeOpacity=".22" />
+          <g fill="currentColor"><circle cx="48" cy="16" r="2" /><circle cx="312" cy="16" r="2" /></g>
+          <g fill="currentColor" fillOpacity=".5"><circle cx="96" cy="16" r="2" /><circle cx="296" cy="16" r="2" /></g>
+        </svg>
         <div className="header-actions">
           <CompactPicker className="layout-picker" label="Factory layout" icon={<Icon name="grid" />}
             value={replay.caseId} disabled={loadingAlgorithm} options={layoutOptions} onChange={chooseLayout} />
-          <a href="https://github.com/Revincxt/FleetLab" aria-label="View repository on GitHub" title="View project on GitHub"><Icon name="code" /></a>
+          <a className="repository-link" href="https://github.com/Revincxt/FleetLab" aria-label="View repository on GitHub" title="View project on GitHub"><Icon name="code" /></a>
         </div>
       </header>
       {error ? <div className="algorithm-error" role="alert"><span>{error}</span><button onClick={() => chooseAlgorithm(algorithmRequest ?? algorithmId)}>Retry</button><button onClick={() => setError(null)} aria-label="Dismiss replay error">×</button></div> : null}
@@ -279,7 +286,7 @@ export default function FleetExplorer() {
         <div className="operations-panel">
           <TaskProgress replay={replay} time={time} />
           <aside className="tasks-panel side-panel" aria-label="Task queue">
-            <header className="side-heading"><h2><Icon name="box" />Tasks <small title="Released tasks">{releasedCount}</small></h2></header>
+            <header className="side-heading"><h2><Icon name="box" />Tasks</h2></header>
             <div className="task-panel-content">
               <nav className="task-filters" aria-label="Task filters">{(["all", "open", "done"] as const).map((filter) => <button key={filter} className={taskFilter === filter ? "is-active" : ""} aria-pressed={taskFilter === filter} onClick={() => setTaskFilter(filter)} data-filter={filter}>{filter === "all" ? "All" : filter === "open" ? "Open" : "Delivered"}<span>{filter === "all" ? releasedCount : filter === "open" ? openCount : frame.completedOrders}</span></button>)}</nav>
               <ol key={replay.caseId + "-" + taskFilter} className="task-list" aria-label="Task list" tabIndex={0} data-task-scroll>
