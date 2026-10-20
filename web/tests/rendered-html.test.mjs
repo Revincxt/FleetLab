@@ -182,11 +182,13 @@ test("uses shared native-like picker menus without focus frames or legacy pointe
   assert.match(picker, /<CompactPicker className="algorithm-picker" label="Planning algorithm"/);
   assert.match(picker, /value=\{value\} disabled=\{loading\} options=\{algorithmOptions\} onChange=\{onChange\}/);
   assert.doesNotMatch(page + picker + css, /<select\b|data-pointer-focus|\.layout-picker select|\.algorithm-picker select/);
-  assert.match(css, /\.picker-menu \{[^}]*border-radius: 8px;[^}]*background: #f8f8fac7/);
-  assert.match(css, /\.picker-menu \{[^}]*backdrop-filter: saturate\(130%\) blur\(20px\)/);
-  assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 23px;[^}]*padding: 3px/);
-  assert.match(css, /\.picker-menu \{[^}]*font: 400 13px\/16px var\(--sans\);[^}]*letter-spacing: normal/);
+  assert.match(css, /\.picker-popover \{[^}]*width: max-content;[^}]*max-width: calc\(100vw - 32px\)/);
+  assert.match(css, /\.picker-menu \{[^}]*border-radius: 13px;[^}]*background: linear-gradient\([^;]+\), #e6edeeb8/);
+  assert.match(css, /\.picker-menu \{[^}]*-webkit-backdrop-filter: saturate\(160%\) blur\(18px\); backdrop-filter: saturate\(160%\) blur\(18px\)/);
+  assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 22px;[^}]*padding: 4px/);
+  assert.match(css, /\.picker-menu \{[^}]*font: 500 12px\/16px var\(--sans\);[^}]*letter-spacing: normal/);
   assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
+  assert.match(css, /\.picker-option\[aria-selected="true"\] \{ font-weight: 600/);
   assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
 });
 
