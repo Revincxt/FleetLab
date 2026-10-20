@@ -636,6 +636,21 @@ test("gives the scene symmetric bounds with floating title and camera tools", as
   assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 10px; bottom: 10px;/);
 });
 
+test("contains scene overlays below the algorithm picker header", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const stage = css.match(/\.map-stage \{([^}]+)\}/)[1];
+  const heading = css.match(/\.map-heading \{([^}]+)\}/)[1];
+  assert.match(stage, /position: relative; z-index: 0;/, "Scene children form their own lower stacking context");
+  assert.ok(Number(heading.match(/z-index: (\d+)/)[1]) > Number(stage.match(/z-index: (\d+)/)[1]));
+  const markup = page.slice(page.indexOf('<header className="map-heading">'), page.indexOf('<div className="replay-controls">'));
+  assert.match(markup, /\{algorithmControl\}[\s\S]*<\/header>\s*<div className="map-stage is-3d">[\s\S]*className="closure-status"[\s\S]*<WarehouseScene/);
+  assert.match(css, /\.closure-status \{[^}]*pointer-events: none/);
+  assert.match(css, /\.algorithm-picker \{ pointer-events: auto/);
+});
+
 test("uses the header-to-panel spacing for all outer panel gaps and screen insets", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /--workspace-gap: 8px;/);

@@ -154,7 +154,8 @@ small { font-size: var(--text-caption); font-weight: 500; }
 .algorithm-error button { border: 0; border-radius: 5px; background: #ffffff0a; padding: 0 8px; }
 .playback-status { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--text-caption); background: #ffffff05; padding: 3px 7px; border-radius: 5px; }
 .playback-status.is-playing { color: var(--green); background: #9cd1b60b; }
-.map-stage { position: relative; flex: 1; min-height: 130px; }
+/* Contain scene overlays below the algorithm menu in the floating header. */
+.map-stage { position: relative; z-index: 0; flex: 1; min-height: 130px; }
 .warehouse-scene { position: absolute; inset: 0; }
 .scene-canvas { position: absolute; inset: 8px; min-height: 0; }
 .scene-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; }
