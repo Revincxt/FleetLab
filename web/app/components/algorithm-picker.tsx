@@ -1,14 +1,11 @@
 import { fleetAlgorithms, type FleetAlgorithmId } from "./fleet-algorithms";
-import { Icon } from "./ui-icon";
+import { CompactPicker } from "./compact-picker";
+
+const algorithmOptions = fleetAlgorithms.map((algorithm) => ({ value: algorithm.id, label: algorithm.label }));
 
 export function AlgorithmPicker({ value, loading, onChange }: {
   value: FleetAlgorithmId; loading: boolean; onChange: (id: FleetAlgorithmId) => void;
 }) {
-  return <label className="algorithm-picker">
-    <span className="sr-only">Planning algorithm</span>
-    <select value={value} disabled={loading} onChange={(event) => onChange(event.target.value as FleetAlgorithmId)}>
-      {fleetAlgorithms.map((algorithm) => <option key={algorithm.id} value={algorithm.id}>{algorithm.label}</option>)}
-    </select>
-    <Icon name="arrow" />
-  </label>;
+  return <CompactPicker className="algorithm-picker" label="Planning algorithm"
+    value={value} disabled={loading} options={algorithmOptions} onChange={onChange} />;
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import WarehouseScene from "./warehouse-scene";
 import TaskProgress from "./task-progress";
 import { AlgorithmPicker } from "./algorithm-picker";
+import { CompactPicker } from "./compact-picker";
 import { fleetAlgorithm, type FleetAlgorithmId } from "./fleet-algorithms";
 import { Icon } from "./ui-icon";
 import { BrandMark } from "./brand-mark";
@@ -38,6 +39,7 @@ export default function FleetExplorer() {
   const [speed, setSpeed] = useState<(typeof speeds)[number]>(1);
   const [taskFilter, setTaskFilter] = useState<"all" | "open" | "done">("open");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const layoutOptions = useMemo(() => gallery ? gallery.cases.map((item) => ({ value: item.caseId, label: layoutNames[item.caseId] ?? item.label })) : [], [gallery]);
   const replay = gallery?.cases.find((item) => item.caseId === caseId) ?? gallery?.cases[0] ?? null;
   const maximumTime = replay ? replay.frames.length - 1 : 0;
   const stepDuration = Math.round(260 / speed);
@@ -201,12 +203,8 @@ export default function FleetExplorer() {
           <span className="brand-name">FleetLab</span>
         </a>
         <div className="header-actions">
-          <label className="layout-picker"><span className="sr-only">Factory layout</span><Icon name="grid" />
-            <select value={replay.caseId} disabled={loadingAlgorithm} onChange={(event) => chooseLayout(event.target.value)}>
-              {gallery.cases.map((item) => <option value={item.caseId} key={item.caseId}>{layoutNames[item.caseId] ?? item.label}</option>)}
-            </select>
-            <Icon name="arrow" className="picker-chevron" />
-          </label>
+          <CompactPicker className="layout-picker" label="Factory layout" icon={<Icon name="grid" />}
+            value={replay.caseId} disabled={loadingAlgorithm} options={layoutOptions} onChange={chooseLayout} />
           <a href="https://github.com/Revincxt/FleetLab" aria-label="View repository on GitHub" title="View project on GitHub"><Icon name="code" /></a>
         </div>
       </header>

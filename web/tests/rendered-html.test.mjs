@@ -163,6 +163,60 @@ test("keeps layout selection and the repository link without a Statistics entry"
   assert.match(header, /className="brand" href="#workspace" aria-label="FleetLab home"/);
 });
 
+test("uses shared native-like picker menus without focus frames or legacy pointer-focus flags", async () => {
+  const [page, picker, css] = await Promise.all([
+    readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/algorithm-picker.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const focus = css.match(/\.picker-trigger:focus \{([^}]+)\}/)?.[1];
+  assert.ok(focus, "Only picker triggers suppress the inner focus frame");
+  assert.match(focus, /outline: none/);
+  const indicator = css.match(/\.compact-picker:has\(\.picker-trigger:focus-visible\) \{([^}]+)\}/)?.[1];
+  assert.ok(indicator, "Keyboard users retain a visible focus indicator on the picker shell");
+  assert.match(indicator, /box-shadow: inset 0 -2px 0 #a2afb9/);
+  assert.doesNotMatch(focus + indicator, /var\(--accent\)|#c9ee96/);
+  assert.match(css, /button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible \{ outline: 2px solid var\(--accent\)/);
+  assert.match(page, /<CompactPicker className="layout-picker" label="Factory layout"/);
+  assert.match(page, /value=\{replay\.caseId\} disabled=\{loadingAlgorithm\} options=\{layoutOptions\} onChange=\{chooseLayout\}/);
+  assert.match(picker, /<CompactPicker className="algorithm-picker" label="Planning algorithm"/);
+  assert.match(picker, /value=\{value\} disabled=\{loading\} options=\{algorithmOptions\} onChange=\{onChange\}/);
+  assert.doesNotMatch(page + picker + css, /<select\b|data-pointer-focus|\.layout-picker select|\.algorithm-picker select/);
+  assert.match(css, /\.picker-menu \{[^}]*border-radius: 8px;[^}]*background: #f8f8fac7/);
+  assert.match(css, /\.picker-menu \{[^}]*backdrop-filter: saturate\(130%\) blur\(20px\)/);
+  assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 23px;[^}]*padding: 3px/);
+  assert.match(css, /\.picker-menu \{[^}]*font: 400 13px\/16px var\(--sans\);[^}]*letter-spacing: normal/);
+  assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
+  assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
+});
+
+test("picker menus close after pointer exit without trapping keyboard focus or touch input", async () => {
+  const picker = await readFile(new URL("../app/components/compact-picker.tsx", import.meta.url), "utf8");
+  for (const retained of ['role="combobox"', 'role="listbox"', 'role="option"', 'aria-expanded={expanded}', 'aria-activedescendant=', 'aria-selected={option.value === value}', 'key === "Tab"', 'key === "Escape"', 'key === "Enter"', '"ArrowDown", "ArrowUp", "Home", "End"']) {
+    assert.ok(picker.includes(retained), retained);
+  }
+  assert.match(picker, /onPointerEnter=\{cancelClose\}/);
+  assert.match(picker, /event\.pointerType !== "mouse" \|\| interaction\.current !== "pointer"/);
+  assert.match(picker, /window\.setTimeout\(close, 180\)/);
+  assert.match(picker, /window\.clearTimeout\(closeTimer\.current\)/);
+  assert.match(picker, /document\.addEventListener\("pointerdown", outside, true\)/);
+  assert.match(picker, /document\.removeEventListener\("pointerdown", outside, true\)/);
+  assert.match(picker, /if \(options\[index\]\.value !== value\) onChange/);
+  assert.doesNotMatch(picker, /\.blur\(|addEventListener\("pointermove"|setInterval/);
+});
+
+test("picker motion follows the active option and respects reduced-motion preferences", async () => {
+  const [picker, css] = await Promise.all([
+    readFile(new URL("../app/components/compact-picker.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(picker, /"--picker-index": activeIndex/);
+  assert.match(css, /\.picker-menu::before \{[^}]*translateY\(calc\(var\(--picker-index, 0\) \* var\(--picker-row-height\)\)\)/);
+  assert.match(css, /@keyframes picker-menu-in/);
+  assert.match(css, /\.layout-picker \.picker-menu \{ transform-origin: top right/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?animation: none !important; transition: none !important/);
+});
+
 test("shares a distinctive routing mark and fleet colors without adding decorative copy", async () => {
   const [page, mark, favicon, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
@@ -280,7 +334,7 @@ test("omits the bottom legend while keeping scene markers and charger status", a
 test("uses concise layout-based scene names without changing replay identifiers", async () => {
   const page = await readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8");
   for (const mapping of ['"rack-maze": "Central Aisle"', '"parallel-aisles": "Long Aisles"', '"cross-dock": "Mixed Layout"', 'serpentine: "Offset Aisles"']) assert.ok(page.includes(mapping), mapping);
-  assert.match(page, /<option value=\{item.caseId\} key=\{item.caseId\}>\{layoutNames\[item.caseId\] \?\? item.label\}/);
+  assert.match(page, /gallery\.cases\.map\(\(item\) => \(\{ value: item\.caseId, label: layoutNames\[item\.caseId\] \?\? item\.label \}\)\)/);
   assert.match(page, /url.searchParams.set\("case", id\)/);
 });
 
