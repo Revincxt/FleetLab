@@ -12,7 +12,7 @@ Coordinated forklifts. Shared factory floors. Interactive 3D simulation replays.
 
 </div>
 
-[![FleetLab industrial factory with task-scoped routes, fleet and charger status, and a compact task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/FleetLab/)
+[![FleetLab console with a 3D factory, forklift routes, fleet and charger status, task progress, and a compact task queue](docs/assets/replay-explorer.png)](https://revincxt.github.io/FleetLab/)
 
 ## Overview
 
