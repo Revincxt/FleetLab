@@ -50,7 +50,7 @@ test("server-renders the production fleet shell", async () => {
   assert.doesNotMatch(html, /Adaptive Agent Lab/);
   assert.match(html, /lang="en"/);
   assert.doesNotMatch(html, /\p{Script=Han}/u);
-  assert.match(html, /name="theme-color" content="#0d1115"/);
+  assert.match(html, /name="theme-color" content="#101114"/);
   assert.match(html, /aria-live="polite"/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
@@ -176,7 +176,7 @@ test("uses shared native-like picker menus without focus frames or legacy pointe
   assert.ok(indicator, "Keyboard users retain a visible focus indicator on the picker shell");
   assert.match(indicator, /box-shadow: inset 0 -2px 0 #a2afb9/);
   assert.doesNotMatch(focus + indicator, /var\(--accent\)|#c9ee96/);
-  assert.match(css, /button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible \{ outline: 2px solid var\(--accent\)/);
+  assert.match(css, /button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible \{ outline: 2px solid var\(--selection\)/);
   assert.match(page, /<CompactPicker className="layout-picker" label="Factory layout"/);
   assert.match(page, /value=\{replay\.caseId\} disabled=\{loadingAlgorithm\} options=\{layoutOptions\} onChange=\{chooseLayout\}/);
   assert.match(picker, /<CompactPicker className="algorithm-picker" label="Planning algorithm"/);
@@ -186,7 +186,7 @@ test("uses shared native-like picker menus without focus frames or legacy pointe
   assert.match(css, /\.picker-menu \{[^}]*border-radius: 13px;[^}]*background: linear-gradient\([^;]+\), #e6edeeb8/);
   assert.match(css, /\.picker-menu \{[^}]*-webkit-backdrop-filter: saturate\(160%\) blur\(18px\); backdrop-filter: saturate\(160%\) blur\(18px\)/);
   assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 22px;[^}]*padding: 4px/);
-  assert.match(css, /\.picker-menu \{[^}]*font: 500 12px\/16px var\(--sans\);[^}]*letter-spacing: normal/);
+  assert.match(css, /\.picker-menu \{[^}]*font: 500 var\(--text-body\)\/16px var\(--sans\);[^}]*letter-spacing: normal/);
   assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
   assert.match(css, /\.picker-option\[aria-selected="true"\] \{ font-weight: 600/);
   assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
@@ -277,6 +277,24 @@ test("keeps task progress above an independently scrolling task queue without pa
   assert.doesNotMatch(page + css, /order-pagination|visiblePage|setOrderPage|Task pages|Next tasks|Previous tasks/);
 });
 
+test("groups compact task totals in the chart header without a redundant percentage", async () => {
+  const [progress, css] = await Promise.all([
+    readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const header = progress.slice(progress.indexOf('<header className="chart-heading">'), progress.indexOf('</header>'));
+  assert.match(header, /Task progress/);
+  assert.match(header, /className="chart-legend" aria-label="Task totals at selected step"/);
+  assert.match(header, /chart-legend-label">Released<\/span>[\s\S]*latest\.released/);
+  assert.match(header, /chart-legend-label">Delivered<\/span>[\s\S]*latest\.delivered/);
+  assert.doesNotMatch(header, /Delivered \/ released tasks|Math\.round|latest\.delivered \/ latest\.released|%/);
+  assert.doesNotMatch(css, /\.chart-heading > span/);
+  assert.match(css, /\.chart-legend \{[^}]*grid-template-columns: repeat\(2, max-content\);[^}]*margin-left: auto/);
+  assert.match(css, /\.chart-heading h2 \{ font-size: var\(--text-title\)/);
+  assert.match(css, /\.chart-legend > span \{[^}]*font-size: var\(--text-caption\)/);
+  assert.match(css, /\.chart-legend strong \{ font-size: var\(--text-value\); font-weight: 600;[^}]*font-variant-numeric: tabular-nums/);
+});
+
 test("omits transport readouts and gives fleet activity and battery their own dynamic colors", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
@@ -304,7 +322,7 @@ test("centers playback and speed controls together as one compact group", async 
   assert.doesNotMatch(css.match(/\.speed-control \{([^}]+)\}/)[1], /margin-left: auto/);
 });
 
-test("uses a quiet graphite playback dock without a framed footer or green primary controls", async () => {
+test("uses a silver primary action and a compact segmented speed control without a framed footer", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -314,14 +332,34 @@ test("uses a quiet graphite playback dock without a framed footer or green prima
   assert.match(footer, /border: 0/);
   assert.match(footer, /background: transparent/);
   assert.doesNotMatch(playback, /var\(--accent\)|#c9ee96|#ddf5b9|#e2f7c4/);
-  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #394650;[^}]*border-radius: 9px/);
+  assert.match(playback, /\.transport-row \{[^}]*border-radius: 999px;[^}]*backdrop-filter: blur\(16px\)/);
+  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #e7ebf0;[^}]*color: #252a32;[^}]*border-radius: 50%/);
   assert.match(playback, /\.transport-controls \.play-button:hover:not\(:disabled\)/);
-  assert.match(playback, /\.speed-control \{[^}]*border-left: 1px solid/);
-  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #35424c/);
+  assert.match(playback, /\.speed-control \{[^}]*border-radius: 999px;[^}]*padding: 3px;[^}]*background: #00000024/);
+  assert.doesNotMatch(playback.match(/\.speed-control \{([^}]+)\}/)[1], /border-left|margin-left: auto/);
+  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #ffffff1c/);
   assert.match(playback, /\.replay-controls :is\(button, input\):focus-visible \{ outline: 2px solid var\(--replay-highlight\)/);
   assert.match(playback, /::-webkit-slider-runnable-track \{[^}]*var\(--replay-highlight\)/);
   assert.match(playback, /::-moz-range-progress \{[^}]*var\(--replay-highlight\)/);
   for (const retained of ['aria-label="Restart replay"', 'aria-label="Previous time step"', 'aria-label="Next time step"', 'aria-keyshortcuts="Space"', 'onChange={(event) => seek(Number(event.target.value))}', 'aria-pressed={speed === rate}', 'onClick={() => setSpeed(rate)}']) assert.ok(page.includes(retained), retained);
+});
+
+test("shares neutral surface layers while keeping operational colors independent of selection", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  for (const token of ["--canvas: #101114", "--surface: #1a1c20", "--surface-raised: #23262b", "--surface-hover: #2b2e34", "--surface-inset: #14161a", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
+  for (const component of ["vehicle-card", "charger-card", "task-card"]) {
+    const style = css.match(new RegExp(`\\.${component} \\{([^}]+)\\}`))[1];
+    assert.match(style, /background: var\(--surface-raised\)/);
+    assert.doesNotMatch(style, /backdrop-filter/, "Repeated cards do not blur or composite the moving scene");
+  }
+  assert.match(css, /\.task-filters \{[^}]*background: var\(--surface-inset\)/);
+  assert.match(css, /\.charger-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 1px;[^}]*overflow: hidden/);
+  assert.match(css, /\.charger-card \{[^}]*border: 0/);
+  assert.match(css, /\.task-card\.is-selected \{[^}]*var\(--selection\)/);
+  assert.match(css, /\.vehicle-status \{[^}]*color: var\(--status-color\)/);
+  assert.match(css, /\.vehicle-battery-label \{[^}]*color: var\(--battery-color\)/);
+  assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--accent\)/);
+  assert.match(css, /\.series-delivered \{ --series-color: var\(--accent\)/);
 });
 
 test("omits the bottom legend while keeping scene markers and charger status", async () => {
@@ -542,4 +580,38 @@ test("gives task progress translucent areas and accurately positioned axis ticks
   assert.ok(progress.includes('100 - tick * 25'));
   assert.match(css, /\.chart-x-tick \{ position: absolute/);
   assert.match(css, /\.chart-axis-line \{[^}]*stroke-linejoin: round/);
+});
+
+test("reserves space beneath an independently sized plot for X-axis labels", async () => {
+  const [progress, css] = await Promise.all([
+    readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(progress, /<div className="chart-plot-area">\s*<svg className="task-history-plot"/);
+  assert.match(css, /\.task-progress-panel \{ flex: 0 0 244px/);
+  assert.match(css, /\.task-progress-panel \{[^}]*padding: 14px 12px 10px/);
+  assert.match(css, /\.task-history-chart \{[^}]*grid-template-columns: 18px minmax\(0, 1fr\); grid-template-rows: minmax\(0, 1fr\) 24px; grid-template-areas: "y plot" "\. x";[^}]*column-gap: 4px; padding-right: 8px/);
+  assert.match(css, /\.chart-plot-area \{ grid-area: plot; position: relative; min-width: 0; min-height: 0/);
+  assert.match(css, /\.task-history-plot \{ position: absolute; inset: 0; display: block; width: 100%; height: 100%/);
+  assert.match(css, /\.chart-x-axis \{ grid-area: x/);
+  assert.match(css, /\.chart-x-tick \{ position: absolute; top: 8px/);
+  assert.doesNotMatch(progress + css, /chart-axis-unit|>Step</);
+});
+
+test("uses medium system text and semibold metrics without introducing another font", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  for (const [role, size] of [["caption", 10], ["body", 12], ["title", 13], ["value", 14], ["display", 20]]) assert.ok(css.includes(`--text-${role}: ${size}px;`));
+  assert.match(css, /body \{[^}]*font: 500 var\(--text-body\)\/1\.5 var\(--sans\)/);
+  assert.match(css, /\.picker-trigger \{[^}]*font: 500 var\(--text-body\)\/16px var\(--sans\)/);
+  assert.match(css, /\.side-heading h2 \{[^}]*font-size: var\(--text-title\)/);
+  assert.match(css, /\.vehicle-card-heading > strong \{ font-size: var\(--text-value\)/);
+  assert.match(css, /\.vehicle-battery-label strong \{ color: inherit; font-size: var\(--text-body\)/);
+  assert.match(css, /\.task-filters button \{[^}]*font-size: var\(--text-body\)/);
+  assert.match(css, /\.task-owner \{[^}]*font-size: var\(--text-caption\)/);
+  assert.doesNotMatch(css, /font-size:\s*\d|font-weight: 650|is-unassigned/);
+  for (const selector of ["vehicle-details b", "vehicle-battery-label strong", "charger-card-heading strong", "task-coordinate", "speed-control button", "chart-legend strong"]) {
+    const style = css.match(new RegExp(`\\.${selector} \\{([^}]+)\\}`))[1];
+    assert.match(style, /font-weight: 600/, selector);
+  }
+  assert.doesNotMatch(css, /@font-face|fonts\.googleapis/);
 });

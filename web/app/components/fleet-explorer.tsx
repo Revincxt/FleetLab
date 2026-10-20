@@ -296,7 +296,7 @@ export default function FleetExplorer() {
                     <span className="task-card-heading">
                       <span className="task-identity">
                         <strong><span>#</span><span className="order-number">{pad(index + 1, 3)}</span></strong>
-                        {ownerLabel ? <span className={"task-owner" + (owner < 0 ? " is-unassigned" : "")} style={{ "--owner-color": owner >= 0 ? vehicles[owner].color : undefined } as CSSProperties}>
+                        {ownerLabel ? <span className="task-owner" style={{ "--owner-color": owner >= 0 ? vehicles[owner].color : undefined } as CSSProperties}>
                           {owner >= 0 ? <i aria-hidden="true" /> : null}{ownerLabel}
                         </span> : null}
                       </span>
