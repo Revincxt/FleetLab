@@ -165,7 +165,7 @@ export default function FleetExplorer() {
   );
   if (!gallery || !replay || !frame || !playback || !sceneFrame) return (
     <main className="loading-shell" aria-live="polite">
-      <BrandMark /><span className="loading-mark">FleetLab</span><p>Loading fleet replay…</p>
+      <BrandMark /><span className="loading-mark">FleetLab</span><p>Loading...</p>
     </main>
   );
 

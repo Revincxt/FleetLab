@@ -45,7 +45,7 @@ test("server-renders the production fleet shell", async () => {
     html,
     /<title>FleetLab — Fleet Simulation<\/title>/i,
   );
-  assert.match(html, /Loading fleet replay/);
+  assert.match(html, /<p>Loading\.\.\.<\/p>/);
   assert.match(html, /FleetLab/);
   assert.doesNotMatch(html, /Adaptive Agent Lab/);
   assert.match(html, /lang="en"/);
