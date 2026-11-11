@@ -12,7 +12,7 @@ from collections import deque
 from dataclasses import dataclass
 from itertools import count
 
-from adaptive_agent_lab.agents.planning import MOVEMENT_ACTIONS
+from adaptive_agent_lab.agents.planning import MOVEMENT_ACTIONS, static_neighbors
 from adaptive_agent_lab.environment.contracts import Action, Position, WarehouseMap
 
 Path = tuple[Position, ...]
@@ -82,9 +82,8 @@ class WindowedRouter:
             queue = deque(distance)
             while queue:
                 point = queue.popleft()
-                for action in MOVEMENT_ACTIONS:
-                    neighbor = point.moved(action)
-                    if neighbor not in distance and self.map.is_traversable(neighbor, blocked):
+                for _, neighbor in static_neighbors(self.map, point):
+                    if neighbor not in distance and neighbor not in blocked:
                         distance[neighbor] = distance[point] + 1
                         queue.append(neighbor)
             self._distances[goal] = distance
@@ -132,12 +131,11 @@ class WindowedRouter:
                 and all(point not in vertices[t] for t in range(time + 1, self.window + 1))
             ):
                 return reconstruct(point, time)
-            for action in (*MOVEMENT_ACTIONS, Action.WAIT):
-                neighbor = point.moved(action) if action.is_movement else point
+            for action, neighbor in (*static_neighbors(self.map, point), (Action.WAIT, point)):
                 next_time = time + 1
                 next_moves = moves + int(action.is_movement)
                 if next_moves > battery or (
-                    action.is_movement and not self.map.is_traversable(neighbor, blocked)
+                    action.is_movement and neighbor in blocked
                 ):
                     continue
                 if (

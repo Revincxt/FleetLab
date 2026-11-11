@@ -79,6 +79,16 @@ Regenerate all three files with the same configuration to keep the runs comparab
 
 </details>
 
+## Checks and deployment
+
+Run `pnpm test:ci` from `web/` to check both server and Pages builds; replay/model
+tests run once. For Python changes, install `.[dev]` and run `make check`.
+
+CI selects checks from the complete change: viewer edits skip Python simulations;
+simulator, scenario, and recorded-replay edits retain the full Python tests on
+3.11 and 3.12, with coverage on 3.12. Pages deploys the verified CI artifact without
+rebuilding or retesting it. Manual CI runs perform every check.
+
 ## Reference
 
 1. David Silver. [Cooperative Pathfinding](https://ojs.aaai.org/index.php/AIIDE/article/view/18726). AIIDE, 2005. — WHCA*.

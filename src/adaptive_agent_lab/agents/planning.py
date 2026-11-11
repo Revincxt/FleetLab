@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import count
 
 from adaptive_agent_lab.agents.base import Agent
@@ -22,6 +23,22 @@ from adaptive_agent_lab.environment.observation import (
 )
 
 MOVEMENT_ACTIONS = (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)
+
+
+@lru_cache(maxsize=8192)
+def static_neighbors(
+    warehouse_map: WarehouseMap, point: Position
+) -> tuple[tuple[Action, Position], ...]:
+    """Reuse immutable grid edges; closures and occupancy are checked by each search.
+
+    Cache only visited cells, with a shared bound across maps. The original
+    movement order is retained so equal-cost paths and diagnostics stay exact.
+    """
+    return tuple(
+        (action, neighbor)
+        for action in MOVEMENT_ACTIONS
+        if warehouse_map.is_traversable(neighbor := point.moved(action))
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,9 +87,8 @@ def astar_path(
             actions.reverse()
             return SearchResult(tuple(actions), current_cost, expanded, True)
 
-        for action in MOVEMENT_ACTIONS:
-            neighbor = current.moved(action)
-            if not warehouse_map.is_traversable(neighbor, blocked_cells):
+        for action, neighbor in static_neighbors(warehouse_map, current):
+            if neighbor in blocked_cells:
                 continue
             neighbor_cost = current_cost + 1
             if neighbor_cost >= costs.get(neighbor, 2**63 - 1):

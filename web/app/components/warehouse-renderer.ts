@@ -9,6 +9,7 @@ import { buildIndustrialForklift } from "./factory-forklift";
 import { buildWorkerTracks, interpolateWorker, type WorkerPose, type WorkerTrack, type WorkerTrafficFrame } from "./workforce-model";
 import { poseWorker, workerFactory, type WorkerVisual } from "./factory-workers";
 import { ForkliftNotices } from "./forklift-notices";
+import { freezeMeshTransforms } from "./scene-transforms";
 
 type RendererCallbacks = {
   onZoom: (zoom: number) => void;
@@ -141,9 +142,11 @@ export class WarehouseRenderer {
       this.controls.addEventListener("change", this.onCameraChange);
 
       this.buildEnvironment();
+      freezeMeshTransforms(this.scene);
       const makeWorker = workerFactory({ geometry: value => this.geometry(value), material: value => this.material(value) });
       buildWorkerTracks(traffic, workerMoveSteps).forEach((track, index) => {
         const visual = makeWorker(index);
+        freezeMeshTransforms(visual.group);
         this.scene.add(visual.group);
         this.workers.push({ visual, track, pose: track.frames[0], motion: null });
       });
@@ -288,6 +291,7 @@ export class WarehouseRenderer {
         glyph.rotation.x = -Math.PI / 2;
         glyph.position.set(pickup ? -0.17 : 0.17, 0.024, 0);
         group.add(base, glyph);
+        freezeMeshTransforms(group);
         this.scene.add(group);
         return { group, ink, label: null };
       });
@@ -326,6 +330,7 @@ export class WarehouseRenderer {
     chassis.add(ring);
     group.add(chassis, badge);
     group.name = `robot-${letter}`;
+    freezeMeshTransforms(group);
     this.scene.add(group);
     return { group, chassis, tint, badge, payload, lift, wheels, color, target: null, motion: null };
   }

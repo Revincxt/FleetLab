@@ -196,7 +196,7 @@ export default function FleetExplorer() {
   };
 
   return (
-    <main className="app-shell control-room">
+    <main className="app-shell">
       <header className="app-header">
         <a className="brand" href="#workspace" aria-label="FleetLab home">
           <span className="brand-mark"><BrandMark /></span>
@@ -265,7 +265,6 @@ export default function FleetExplorer() {
           <WarehouseScene key={replay.caseId + "-" + algorithmId} scenario={scenario} frame={sceneFrame} traffic={replay.frames} workerMoveSteps={replay.workforce?.moveSteps ?? 1} />
           </div>
           <div className="replay-controls">
-            <output className="replay-position" aria-label="Current replay step" title={simulationStepHint}><span>Step</span><strong>{time.toLocaleString("en-US")}</strong><span>/ {maximumTime.toLocaleString("en-US")}</span></output>
             <div className="timeline-control">
               <input type="range" min="0" max={maximumTime} value={time} aria-label={"Replay step, " + time + " of " + maximumTime} aria-valuetext={`Step ${time} of ${maximumTime}`} title={simulationStepHint} style={{ "--timeline-progress": time / maximumTime * 100 + "%" } as CSSProperties} onChange={(event) => seek(Number(event.target.value))} />
               <div className="timeline-events" role="group" aria-label="Scenario event shortcuts">

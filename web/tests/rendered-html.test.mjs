@@ -50,7 +50,7 @@ test("server-renders the production fleet shell", async () => {
   assert.doesNotMatch(html, /Adaptive Agent Lab/);
   assert.match(html, /lang="en"/);
   assert.doesNotMatch(html, /\p{Script=Han}/u);
-  assert.match(html, /name="theme-color" content="#101114"/);
+  assert.match(html, /name="theme-color" content="#090d14"/);
   assert.match(html, /aria-live="polite"/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
@@ -335,22 +335,19 @@ test("gives task progress a matching decorative panel-heading icon", async () =>
   assert.match(css, /\.chart-heading h2 \{[^}]*display: flex; align-items: center; gap: 8px; min-width: 0/);
 });
 
-test("reports the recorded step and gives fleet activity and battery their own dynamic colors", async () => {
+test("keeps step details on the slider and gives fleet activity and battery their own dynamic colors", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.doesNotMatch(page + css, /replay-caption|nextEvent|Jump to next event/);
-  assert.match(page, /<output className="replay-position" aria-label="Current replay step" title=\{simulationStepHint\}/);
-  assert.ok(page.includes('time.toLocaleString("en-US")'));
-  assert.ok(page.includes('maximumTime.toLocaleString("en-US")'));
+  assert.doesNotMatch(page + css, /replay-position|replay-caption|nextEvent|Jump to next event/);
   for (const retained of ['aria-valuetext={`Step ${time} of ${maximumTime}`}', 'aria-label="Scenario event shortcuts"', 'aria-label="Playback speed"', 'aria-label="Replay transport"']) assert.ok(page.includes(retained), retained);
   assert.match(page, /data-state=\{fleetTone\}/);
   assert.match(page, /data-state=\{stateTone\} data-battery=\{batteryTone\}/);
   assert.match(page, /"--vehicle-color": vehicle.color, "--status-color": statusColors\[stateTone\], "--battery-color": batteryColors\[batteryTone\]/);
   assert.match(css, /\.vehicle-status i \{[^}]*color: var\(--status-color\)/);
   assert.match(css, /\.vehicle-battery-label \{[^}]*color: var\(--battery-color\)/);
-  assert.match(css, /\.vehicle-battery-track i \{ background: var\(--battery-color\)/);
+  assert.match(css, /\.vehicle-battery-track i \{[^}]*background: var\(--battery-color\)/);
 });
 
 test("centers playback and speed controls together as one compact group", async () => {
@@ -365,7 +362,7 @@ test("centers playback and speed controls together as one compact group", async 
   assert.doesNotMatch(css.match(/\.speed-control \{([^}]+)\}/)[1], /margin-left: auto/);
 });
 
-test("groups replay actions in a floating dock with an exact recorded step readout", async () => {
+test("groups replay actions in a compact floating dock", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -390,7 +387,7 @@ test("groups replay actions in a floating dock with an exact recorded step reado
 
 test("shares translucent surface layers while keeping operational colors independent of selection", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  for (const token of ["--canvas: #101114", "--surface: #15181e9c", "--surface-raised: #ffffff03", "--surface-hover: #ffffff0b", "--surface-inset: #07090e55", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
+  for (const token of ["--canvas: #090d14", "--surface: #11192394", "--surface-raised: #ffffff02", "--surface-hover: #ffffff0a", "--surface-inset: #070c1440", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
   for (const component of ["vehicle-card", "charger-card", "task-card"]) {
     const style = css.match(new RegExp(`\\.${component} \\{([^}]+)\\}`))[1];
     assert.match(style, /background: var\(--surface-raised\)/);
@@ -447,7 +444,7 @@ test("parenthesizes task coordinates and keeps camera tools beside the scene", a
   ]);
   assert.ok(page.includes('className="task-coordinate">({order.pickup.x}, {order.pickup.y})'));
   assert.ok(page.includes('className="task-coordinate">({order.dropoff.x}, {order.dropoff.y})'));
-  assert.match(css, /\.scene-camera-tools \{[^}]*right: 12px; bottom: 146px/);
+  assert.match(css, /\.scene-camera-tools \{[^}]*right: 12px; bottom: 128px/);
   assert.match(css, /\.camera-controls \{[^}]*flex-direction: column/);
   assert.doesNotMatch(scene + css, /scene-bottom-bar/);
   assert.ok(scene.indexOf('aria-label="Zoom in"') < scene.indexOf('aria-label="Camera zoom"'));
@@ -633,11 +630,11 @@ test("keeps fleet and task panels permanently expanded without collapse controls
 
 test("reserves room for floating controls while letting the scene fill its canvas", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.scene-canvas \{[^}]*inset: 0;[^}]*padding: 60px 12px 150px;/);
+  assert.match(css, /\.scene-canvas \{[^}]*inset: 0;[^}]*padding: 60px 12px 132px;/);
   assert.match(css, /\.map-panel \{ position: relative/);
   assert.match(css, /\.map-heading \{ position: absolute; top: 0; left: 0; right: 0;/);
   assert.match(css, /\.map-heading \{[^}]*pointer-events: none/);
-  assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 12px; bottom: 146px;/);
+  assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 12px; bottom: 128px;/);
 });
 
 test("contains scene overlays below the algorithm picker header", async () => {
@@ -657,7 +654,7 @@ test("contains scene overlays below the algorithm picker header", async () => {
 
 test("uses the header-to-panel spacing for all outer panel gaps and screen insets", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /--workspace-gap: 16px;/);
+  assert.match(css, /--workspace-gap: 8px;/);
   assert.match(css, /\.control-workspace \{[^}]*gap: var\(--workspace-gap\); padding: var\(--workspace-gap\)/);
   for (const component of ["fleet-sidebar", "operations-panel"]) assert.match(css, new RegExp(`\\.${component} \\{[^}]*gap: var\\(--workspace-gap\\)`));
   const responsive = css.slice(css.indexOf("@media (max-width: 1300px)"));

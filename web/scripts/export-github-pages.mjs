@@ -65,18 +65,7 @@ assert.match(
   "the production worker must return HTML",
 );
 
-const renderedHtml = await response.text();
-// Next metadata keeps public-file URLs root-relative. Rebase those references
-// without changing the shared application layout used by the local server.
-const publicFiles = ["favicon.svg", "og.png"];
-const publicFilePattern = new RegExp(
-  `(["'])/(${publicFiles.map((filename) => filename.replace(".", "\\.")).join("|")})\\1`,
-  "g",
-);
-const html = renderedHtml.replace(
-  publicFilePattern,
-  (_match, quote, filename) => `${quote}${pagesBase}${filename}${quote}`,
-);
+const html = await response.text();
 const publicSiteUrl = new URL(pagesBase, "https://revincxt.github.io/");
 assert.match(
   html,

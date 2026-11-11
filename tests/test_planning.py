@@ -6,6 +6,7 @@ from adaptive_agent_lab.agents.planning import (
     OpenLoopPlanningAgent,
     ReplanningAgent,
     astar_path,
+    static_neighbors,
 )
 from adaptive_agent_lab.environment.contracts import (
     Action,
@@ -58,6 +59,39 @@ def run_agent(agent: OpenLoopPlanningAgent | ReplanningAgent) -> WarehouseEnviro
 
 
 class AStarTests(unittest.TestCase):
+    def test_cached_geometry_still_obeys_changing_closures(self) -> None:
+        warehouse_map = WarehouseMap(3, 2)
+        start, goal = Position(0, 0), Position(2, 0)
+        direct = astar_path(warehouse_map, start, goal)
+        detour = astar_path(
+            warehouse_map, start, goal, blocked_cells=frozenset({Position(1, 0)})
+        )
+        self.assertEqual(direct.actions, (Action.RIGHT, Action.RIGHT))
+        self.assertEqual(detour.cost, 4)
+        self.assertEqual(astar_path(warehouse_map, start, goal), direct)
+        # A closure on the current cell must still allow the robot to leave it.
+        self.assertEqual(
+            astar_path(warehouse_map, start, goal, blocked_cells=frozenset({start})), direct
+        )
+
+    def test_cached_geometry_is_not_shared_between_different_maps(self) -> None:
+        start, goal = Position(0, 0), Position(2, 0)
+        clear = WarehouseMap(3, 2)
+        wall = WarehouseMap(3, 2, obstacles=frozenset({Position(1, 0), Position(1, 1)}))
+        self.assertTrue(astar_path(clear, start, goal).reached)
+        self.assertFalse(astar_path(wall, start, goal).reached)
+        self.assertTrue(astar_path(clear, start, goal).reached)
+
+    def test_geometry_cache_stays_bounded_on_large_maps(self) -> None:
+        static_neighbors.cache_clear()
+        limit = static_neighbors.cache_info().maxsize
+        assert limit is not None
+        warehouse_map = WarehouseMap(limit + 17, 1)
+        for x in range(warehouse_map.width):
+            static_neighbors(warehouse_map, Position(x, 0))
+        self.assertLessEqual(static_neighbors.cache_info().currsize, limit)
+        static_neighbors.cache_clear()
+
     def test_astar_finds_deterministic_shortest_detour(self) -> None:
         warehouse_map = WarehouseMap(
             4,

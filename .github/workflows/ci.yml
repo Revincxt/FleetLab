@@ -4,13 +4,35 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Select affected checks
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.scope.outputs.python }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      package: ${{ steps.scope.outputs.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify check selection
+        run: python -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Classify the complete change
+        id: scope
+        run: python .github/scripts/ci_scope.py
+
   python-quality:
     name: Python ${{ matrix.python-version }} quality
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -26,14 +48,22 @@ jobs:
       - name: Install project and development tools
         run: python -m pip install -e '.[dev]'
       - name: Ruff
+        if: matrix.python-version == '3.12'
         run: ruff check .
       - name: Mypy
+        if: matrix.python-version == '3.12'
         run: mypy src
       - name: Pytest with branch coverage
+        if: matrix.python-version == '3.12'
         run: pytest --cov=adaptive_agent_lab --cov-report=term-missing
+      - name: Pytest compatibility
+        if: matrix.python-version == '3.11'
+        run: pytest
 
   python-package:
     name: Build Python distribution
+    needs: changes
+    if: needs.changes.outputs.package == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,12 +82,19 @@ jobs:
 
   frontend:
     name: Build dashboard
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     defaults:
       run:
         working-directory: web
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.9.0
@@ -70,7 +107,46 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Lint dashboard
         run: pnpm run lint
-      - name: Test local server build, rendering, and replay data
-        run: pnpm run test:server
-      - name: Test GitHub Pages export
-        run: pnpm run test:pages
+      - name: Typecheck dashboard
+        run: pnpm run typecheck
+      - name: Verify replay data, local server, and GitHub Pages builds
+        run: pnpm run test:ci
+      - name: Upload verified Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: web/dist/pages
+
+  deploy:
+    name: Deploy static demo
+    needs: [frontend, python-quality, python-package]
+    if: >-
+      ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+          && needs.frontend.result == 'success'
+          && (needs.python-quality.result == 'success' || needs.python-quality.result == 'skipped')
+          && (needs.python-package.result == 'success' || needs.python-package.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Skip superseded commits
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy verified artifact to GitHub Pages
+        if: steps.latest.outputs.current == 'true'
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
