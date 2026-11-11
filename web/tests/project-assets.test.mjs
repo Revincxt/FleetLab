@@ -7,7 +7,7 @@ const root = new URL("../../", import.meta.url);
 test("README links resolve to existing project files and current commands", async () => {
   const readme = await readFile(new URL("README.md", root), "utf8");
   const links = [...readme.matchAll(/\]\(([^)]+)\)/g)].map(match => match[1]);
-  const localLinks = links.filter(link => !/^(?:https?:|#)/.test(link));
+  const localLinks = links.filter(link => !/^(?:https?:|#)/.test(link)).map(link => link.split(/[?#]/)[0]);
   assert.ok(localLinks.includes("docs/assets/replay-explorer.png"));
   for (const link of localLinks) {
     await access(new URL(link.split("#")[0], root));
