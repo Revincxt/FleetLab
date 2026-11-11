@@ -13,7 +13,7 @@ export function buildIndustrialForklift(resources: Resources, color: string) {
   lift.name = "fork-carriage";
   const finish = (color: THREE.ColorRepresentation, roughness = 0.6, metalness = 0.2) =>
     resources.material(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
-  const paint = finish(0xc9923e), steel = finish(0x3c464a, 0.43, 0.65);
+  const paint = finish(0x8d979e, 0.5, 0.35), steel = finish(0x3c464a, 0.43, 0.65);
   const rubber = finish(0x20262a, 0.96, 0), alloy = finish(0x909b9d, 0.38, 0.65);
   const tint = finish(color), dark = finish(0x283136);
   const light = resources.material(new THREE.MeshStandardMaterial({ color: 0xf0ead9, emissive: 0xe5dcbf, emissiveIntensity: 0.7 }));
@@ -34,10 +34,10 @@ export function buildIndustrialForklift(resources: Resources, color: string) {
     mesh.name = name; mesh.castShadow = mesh.receiveShadow = true;
     chassis.add(mesh);
   }
-  shell(rubber, [0.62, 0.10, 0.64], [0, 0.16, -0.03], 0.025, "impact-bumper");
-  shell(paint, [0.57, 0.30, 0.28], [0, 0.33, -0.20], 0.035, "counterweight");
-  shell(paint, [0.53, 0.18, 0.32], [0, 0.26, 0.05], 0.015, "drive-chassis");
-  shell(dark, [0.39, 0.20, 0.30], [0, 0.56, -0.15], 0.012, "control-housing");
+  shell(rubber, [0.62, 0.10, 0.64], [0, 0.16, -0.03], 0.008, "impact-bumper");
+  shell(paint, [0.57, 0.30, 0.28], [0, 0.33, -0.20], 0.009, "counterweight");
+  shell(paint, [0.53, 0.18, 0.32], [0, 0.26, 0.05], 0.006, "drive-chassis");
+  shell(dark, [0.39, 0.20, 0.30], [0, 0.56, -0.15], 0.006, "control-housing");
   part(chassis, tint, [0.395, 0.035, 0.24], [0, 0.64, -0.15], "fleet-color-panel");
   part(chassis, steel, [0.36, 0.045, 0.26], [0, 0.68, -0.15]);
   const lidar = new THREE.Mesh(resources.geometry(new THREE.CylinderGeometry(0.055, 0.065, 0.085, 12)), dark);

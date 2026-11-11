@@ -163,7 +163,7 @@ test("keeps layout selection and the repository link without a Statistics entry"
   assert.match(header, /className="brand" href="#workspace" aria-label="FleetLab home"/);
 });
 
-test("uses shared native-like picker menus without focus frames or legacy pointer-focus flags", async () => {
+test("uses shared smoked-glass picker menus without focus frames or legacy pointer-focus flags", async () => {
   const [page, picker, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/algorithm-picker.tsx", import.meta.url), "utf8"),
@@ -183,16 +183,15 @@ test("uses shared native-like picker menus without focus frames or legacy pointe
   assert.match(picker, /value=\{value\} disabled=\{loading\} options=\{algorithmOptions\} onChange=\{onChange\}/);
   assert.doesNotMatch(page + picker + css, /<select\b|data-pointer-focus|\.layout-picker select|\.algorithm-picker select/);
   assert.match(css, /\.picker-popover \{[^}]*width: max-content;[^}]*max-width: calc\(100vw - 32px\)/);
-  assert.match(css, /\.picker-menu \{[^}]*border-radius: 13px;[^}]*background: linear-gradient\([^;]+\), #e6edeeb8/);
-  assert.match(css, /\.picker-menu \{[^}]*-webkit-backdrop-filter: saturate\(160%\) blur\(18px\); backdrop-filter: saturate\(160%\) blur\(18px\)/);
-  assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 22px;[^}]*padding: 4px/);
+  assert.match(css, /\.picker-menu \{[^}]*border-radius: 8px;[^}]*background: var\(--glass-overlay\)/);
+  assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 28px;[^}]*padding: 4px/);
   assert.match(css, /\.picker-menu \{[^}]*font: 500 var\(--text-body\)\/16px var\(--sans\);[^}]*letter-spacing: normal/);
   assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
   assert.match(css, /\.picker-option\[aria-selected="true"\] \{ font-weight: 600/);
   assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
 });
 
-test("gives the full-width header a routing signature and an unframed repository link", async () => {
+test("keeps the header routing decoration separate from interactive controls", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -208,12 +207,13 @@ test("gives the full-width header a routing signature and an unframed repository
   assert.match(headerStyle, /border: 0; border-bottom: 1px solid[^;]+; border-radius: 0/);
   assert.doesNotMatch(headerStyle, /overflow: hidden/);
   assert.doesNotMatch(css, /\.app-header \{[^}]*margin-inline/);
-  assert.match(css, /\.header-routes \{[^}]*pointer-events: none/);
+  assert.match(headerStyle, /box-shadow: none/);
   assert.doesNotMatch(css.match(/\.header-actions \{([^}]+)\}/)[1], /border:|background:|box-shadow:/);
   assert.match(css, /\.repository-link \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none/);
   assert.doesNotMatch(css.match(/\.repository-link:hover \{([^}]+)\}/)[1], /background:|border:|box-shadow:/);
   assert.doesNotMatch(css, /\.repository-link::before/);
-  assert.match(css, /@media \(max-width: 900px\) \{[^}]*\}\s*\.header-routes \{ display: none/);
+  assert.match(css, /\.header-routes \{[^}]*pointer-events: none/);
+  assert.doesNotMatch(css, /\.header-routes \{[^}]*display: none/);
 });
 
 test("picker menus close after pointer exit without trapping keyboard focus or touch input", async () => {
@@ -264,7 +264,7 @@ test("shares a distinctive routing mark and fleet colors without adding decorati
   assert.doesNotMatch(page, />adaptive<|Adaptive Agent Lab home/);
   assert.match(page, /ForkliftGlyph loaded=\{isVehicleLoaded\(robot\)\}/);
   assert.match(page, /--owner-color/);
-  assert.match(css, /--accent: #c9ee96/);
+  assert.match(css, /--accent: #b5d8ed/);
   assert.doesNotMatch(css, /@font-face|fonts\.googleapis/);
 });
 
@@ -303,7 +303,7 @@ test("keeps task progress above an independently scrolling task queue without pa
   assert.doesNotMatch(page + css, /order-pagination|visiblePage|setOrderPage|Task pages|Next tasks|Previous tasks/);
 });
 
-test("groups compact task totals in the chart header without a redundant percentage", async () => {
+test("groups task totals in the chart header without a redundant percentage", async () => {
   const [progress, css] = await Promise.all([
     readFile(new URL("../app/components/task-progress.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -318,7 +318,7 @@ test("groups compact task totals in the chart header without a redundant percent
   assert.match(css, /\.chart-legend \{[^}]*grid-template-columns: repeat\(2, max-content\);[^}]*margin-left: auto/);
   assert.match(css, /\.chart-heading h2 \{ font-size: var\(--text-title\)/);
   assert.match(css, /\.chart-legend > span \{[^}]*font-size: var\(--text-caption\)/);
-  assert.match(css, /\.chart-legend strong \{ font-size: var\(--text-value\); font-weight: 600;[^}]*font-variant-numeric: tabular-nums/);
+  assert.match(css, /\.chart-legend strong \{[^}]*font-size: var\(--text-value\); font-weight: 600;[^}]*font-variant-numeric: tabular-nums/);
 });
 
 test("gives task progress a matching decorative panel-heading icon", async () => {
@@ -332,20 +332,23 @@ test("gives task progress a matching decorative panel-heading icon", async () =>
   assert.match(icons, /chart: "[^"]+"/);
   assert.match(icons, /aria-hidden="true"/);
   assert.match(css, /\.side-heading h2 > \.icon, \.chart-heading h2 > \.icon \{ width: 15px; height: 15px; flex: 0 0 auto; color: var\(--faint\)/);
-  assert.match(css, /\.chart-heading h2 \{[^}]*display: flex; align-items: center; gap: 9px; min-width: 0/);
+  assert.match(css, /\.chart-heading h2 \{[^}]*display: flex; align-items: center; gap: 8px; min-width: 0/);
 });
 
-test("omits transport readouts and gives fleet activity and battery their own dynamic colors", async () => {
+test("reports the recorded step and gives fleet activity and battery their own dynamic colors", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.doesNotMatch(page + css, /time-readout|replay-caption|nextEvent|Jump to next event/);
+  assert.doesNotMatch(page + css, /replay-caption|nextEvent|Jump to next event/);
+  assert.match(page, /<output className="replay-position" aria-label="Current replay step" title=\{simulationStepHint\}/);
+  assert.ok(page.includes('time.toLocaleString("en-US")'));
+  assert.ok(page.includes('maximumTime.toLocaleString("en-US")'));
   for (const retained of ['aria-valuetext={`Step ${time} of ${maximumTime}`}', 'aria-label="Scenario event shortcuts"', 'aria-label="Playback speed"', 'aria-label="Replay transport"']) assert.ok(page.includes(retained), retained);
   assert.match(page, /data-state=\{fleetTone\}/);
   assert.match(page, /data-state=\{stateTone\} data-battery=\{batteryTone\}/);
   assert.match(page, /"--vehicle-color": vehicle.color, "--status-color": statusColors\[stateTone\], "--battery-color": batteryColors\[batteryTone\]/);
-  assert.match(css, /\.vehicle-status \{[^}]*color: var\(--status-color\)/);
+  assert.match(css, /\.vehicle-status i \{[^}]*color: var\(--status-color\)/);
   assert.match(css, /\.vehicle-battery-label \{[^}]*color: var\(--battery-color\)/);
   assert.match(css, /\.vehicle-battery-track i \{ background: var\(--battery-color\)/);
 });
@@ -355,51 +358,52 @@ test("centers playback and speed controls together as one compact group", async 
   const row = css.match(/\.transport-row \{([^}]+)\}/)[1];
   assert.match(row, /display: flex/);
   assert.match(row, /justify-content: center/);
-  assert.match(row, /gap: 16px/);
+  assert.match(row, /gap: 24px/);
   assert.match(row, /width: fit-content/);
-  assert.match(row, /margin: 8px auto 0/);
+  assert.match(row, /margin: 4px auto 0/);
   assert.doesNotMatch(row, /grid-template-columns|space-between/);
   assert.doesNotMatch(css.match(/\.speed-control \{([^}]+)\}/)[1], /margin-left: auto/);
 });
 
-test("uses a silver primary action and a compact segmented speed control without a framed footer", async () => {
+test("groups replay actions in a floating dock with an exact recorded step readout", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   const playback = css.slice(css.indexOf('.replay-controls {'), css.indexOf('.task-panel-content {'));
   const footer = playback.match(/\.replay-controls \{([^}]+)\}/)[1];
-  assert.match(footer, /border: 0/);
-  assert.match(footer, /background: transparent/);
+  assert.match(footer, /position: absolute/);
+  assert.match(footer, /background: var\(--glass-overlay\)/);
   assert.doesNotMatch(playback, /var\(--accent\)|#c9ee96|#ddf5b9|#e2f7c4/);
-  assert.match(playback, /\.transport-row \{[^}]*border-radius: 999px;[^}]*backdrop-filter: blur\(16px\)/);
-  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #e7ebf0;[^}]*color: #252a32;[^}]*border-radius: 50%/);
+  assert.match(playback, /\.transport-row \{[^}]*border: 0;[^}]*background: transparent/);
+  assert.doesNotMatch(playback, /border-radius: 999px/);
+  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #e7ebf0;[^}]*color: #252a32;[^}]*border-radius: 6px/);
   assert.match(playback, /\.transport-controls \.play-button:hover:not\(:disabled\)/);
-  assert.match(playback, /\.speed-control \{[^}]*border-radius: 999px;[^}]*padding: 3px;[^}]*background: #00000024/);
+  assert.match(playback, /\.speed-control \{[^}]*padding: 2px;[^}]*background: #ffffff04/);
   assert.doesNotMatch(playback.match(/\.speed-control \{([^}]+)\}/)[1], /border-left|margin-left: auto/);
-  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #ffffff1c/);
+  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #ffffff16/);
   assert.match(playback, /\.replay-controls :is\(button, input\):focus-visible \{ outline: 2px solid var\(--replay-highlight\)/);
   assert.match(playback, /::-webkit-slider-runnable-track \{[^}]*var\(--replay-highlight\)/);
   assert.match(playback, /::-moz-range-progress \{[^}]*var\(--replay-highlight\)/);
   for (const retained of ['aria-label="Restart replay"', 'aria-label="Previous time step"', 'aria-label="Next time step"', 'aria-keyshortcuts="Space"', 'onChange={(event) => seek(Number(event.target.value))}', 'aria-pressed={speed === rate}', 'onClick={() => setSpeed(rate)}']) assert.ok(page.includes(retained), retained);
 });
 
-test("shares neutral surface layers while keeping operational colors independent of selection", async () => {
+test("shares translucent surface layers while keeping operational colors independent of selection", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  for (const token of ["--canvas: #101114", "--surface: #1a1c20", "--surface-raised: #23262b", "--surface-hover: #2b2e34", "--surface-inset: #14161a", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
+  for (const token of ["--canvas: #101114", "--surface: #15181e9c", "--surface-raised: #ffffff03", "--surface-hover: #ffffff0b", "--surface-inset: #07090e55", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
   for (const component of ["vehicle-card", "charger-card", "task-card"]) {
     const style = css.match(new RegExp(`\\.${component} \\{([^}]+)\\}`))[1];
     assert.match(style, /background: var\(--surface-raised\)/);
     assert.doesNotMatch(style, /backdrop-filter/, "Repeated cards do not blur or composite the moving scene");
   }
-  assert.match(css, /\.task-filters \{[^}]*background: var\(--surface-inset\)/);
+  assert.match(css, /\.task-filters \{[^}]*background: transparent/);
   assert.match(css, /\.charger-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 1px;[^}]*overflow: hidden/);
   assert.match(css, /\.charger-card \{[^}]*border: 0/);
   assert.match(css, /\.task-card\.is-selected \{[^}]*var\(--selection\)/);
-  assert.match(css, /\.vehicle-status \{[^}]*color: var\(--status-color\)/);
+  assert.match(css, /\.vehicle-status i \{[^}]*color: var\(--status-color\)/);
   assert.match(css, /\.vehicle-battery-label \{[^}]*color: var\(--battery-color\)/);
-  assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--accent\)/);
-  assert.match(css, /\.series-delivered \{ --series-color: var\(--accent\)/);
+  assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--charging\)/);
+  assert.match(css, /\.series-delivered \{ --series-color: #c4dbec/);
 });
 
 test("omits the bottom legend while keeping scene markers and charger status", async () => {
@@ -429,13 +433,13 @@ test("gives every charging station its own status-colored charger icon", async (
   assert.doesNotMatch(cards, /<Icon name="bolt"/);
   assert.match(icons, /charger: "M2 21h13/);
   assert.match(css, /\.charger-symbol \{[^}]*color: var\(--charger-color\)/);
-  assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--accent\)/);
+  assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--charging\)/);
   assert.match(css, /\.charger-card\.is-occupied \{ --charger-color: var\(--amber\)/);
-  assert.match(css, /\.charger-card-heading \{[^}]*flex-wrap: wrap/);
+  assert.match(css, /\.charger-card-heading \{[^}]*flex-wrap: nowrap/);
   assert.match(css, /\.charger-battery \{[^}]*white-space: nowrap/);
 });
 
-test("parenthesizes task coordinates and anchors a vertical camera toolbar at the scene corner", async () => {
+test("parenthesizes task coordinates and keeps camera tools beside the scene", async () => {
   const [page, css, scene] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -443,7 +447,7 @@ test("parenthesizes task coordinates and anchors a vertical camera toolbar at th
   ]);
   assert.ok(page.includes('className="task-coordinate">({order.pickup.x}, {order.pickup.y})'));
   assert.ok(page.includes('className="task-coordinate">({order.dropoff.x}, {order.dropoff.y})'));
-  assert.match(css, /\.scene-camera-tools \{[^}]*right: 10px; bottom: 10px/);
+  assert.match(css, /\.scene-camera-tools \{[^}]*right: 12px; bottom: 146px/);
   assert.match(css, /\.camera-controls \{[^}]*flex-direction: column/);
   assert.doesNotMatch(scene + css, /scene-bottom-bar/);
   assert.ok(scene.indexOf('aria-label="Zoom in"') < scene.indexOf('aria-label="Camera zoom"'));
@@ -627,13 +631,13 @@ test("keeps fleet and task panels permanently expanded without collapse controls
   assert.match(page, /<div className="task-panel-content">/);
 });
 
-test("gives the scene symmetric bounds with floating title and camera tools", async () => {
+test("reserves room for floating controls while letting the scene fill its canvas", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.scene-canvas \{[^}]*inset: 8px;/);
+  assert.match(css, /\.scene-canvas \{[^}]*inset: 0;[^}]*padding: 60px 12px 150px;/);
   assert.match(css, /\.map-panel \{ position: relative/);
   assert.match(css, /\.map-heading \{ position: absolute; top: 0; left: 0; right: 0;/);
   assert.match(css, /\.map-heading \{[^}]*pointer-events: none/);
-  assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 10px; bottom: 10px;/);
+  assert.match(css, /\.scene-camera-tools \{ position: absolute; right: 12px; bottom: 146px;/);
 });
 
 test("contains scene overlays below the algorithm picker header", async () => {
@@ -653,7 +657,7 @@ test("contains scene overlays below the algorithm picker header", async () => {
 
 test("uses the header-to-panel spacing for all outer panel gaps and screen insets", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /--workspace-gap: 8px;/);
+  assert.match(css, /--workspace-gap: 16px;/);
   assert.match(css, /\.control-workspace \{[^}]*gap: var\(--workspace-gap\); padding: var\(--workspace-gap\)/);
   for (const component of ["fleet-sidebar", "operations-panel"]) assert.match(css, new RegExp(`\\.${component} \\{[^}]*gap: var\\(--workspace-gap\\)`));
   const responsive = css.slice(css.indexOf("@media (max-width: 1300px)"));
@@ -671,8 +675,8 @@ test("gives task progress translucent areas and accurately positioned axis ticks
     assert.ok(progress.includes('fill={`url(#${chartId}-' + series + '-fill)`}'));
   }
   assert.equal((progress.match(/<linearGradient /g) ?? []).length, 2);
-  assert.match(progress, /stopOpacity="0\.24"/);
-  assert.match(progress, /stopOpacity="0\.04"/);
+  assert.match(progress, /stopOpacity="0\.10"/);
+  assert.match(progress, /stopOpacity="0\.01"/);
   assert.match(progress, /className="chart-axis-line" d="M0,0V240H1000" vectorEffect="non-scaling-stroke"/);
   assert.ok(progress.includes('step / Math.max(time, 1) * 100'));
   assert.ok(progress.includes('100 - tick * 25'));
@@ -707,7 +711,7 @@ test("uses medium system text and semibold metrics without introducing another f
   assert.match(css, /\.task-filters button \{[^}]*font-size: var\(--text-body\)/);
   assert.match(css, /\.task-owner \{[^}]*font-size: var\(--text-caption\)/);
   assert.doesNotMatch(css, /font-size:\s*\d|font-weight: 650|is-unassigned/);
-  for (const selector of ["vehicle-details b", "vehicle-battery-label strong", "charger-card-heading strong", "task-coordinate", "speed-control button", "chart-legend strong"]) {
+  for (const selector of ["vehicle-details b", "vehicle-battery-label strong", "charger-card-heading strong", "task-coordinate", "speed-control button"]) {
     const style = css.match(new RegExp(`\\.${selector} \\{([^}]+)\\}`))[1];
     assert.match(style, /font-weight: 600/, selector);
   }

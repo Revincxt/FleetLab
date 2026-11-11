@@ -126,7 +126,7 @@ export class WarehouseRenderer {
       this.renderer.domElement.addEventListener("keydown", this.onKeyDown);
       this.renderer.domElement.addEventListener("webglcontextlost", this.onContextLost);
 
-      this.camera.position.set(17, 21, 24);
+      this.camera.position.set(17, 27, 24);
       this.controls.target.set(0, 0.25, 0);
       this.controls.enablePan = false;
       this.controls.enableDamping = false;
@@ -194,10 +194,10 @@ export class WarehouseRenderer {
     if (!context) throw new Error("Canvas labels are unavailable");
     context.fillStyle = background;
     context.beginPath();
-    context.roundRect(8, 8, 112, 112, 12);
+    context.roundRect(8, 8, 112, 112, 3);
     context.fill();
     context.strokeStyle = color;
-    context.lineWidth = 3;
+    context.lineWidth = 2;
     context.stroke();
     context.fillStyle = color;
     if (text === "charge") {
@@ -331,9 +331,9 @@ export class WarehouseRenderer {
   }
 
   private makeRoute(dashed = false, lane = 0): RouteVisual {
-    const radius = dashed ? 0.041 : 0.038;
+    const radius = dashed ? 0.030 : 0.028;
     // Muted strokes stay legible over concrete with a narrow, softer dark border.
-    const material = this.material(new THREE.MeshBasicMaterial({ color: 0xc9ee96, transparent: true, opacity: 1, depthWrite: false, toneMapped: false }));
+    const material = this.material(new THREE.MeshBasicMaterial({ color: 0x93b6d8, transparent: true, opacity: 1, depthWrite: false, toneMapped: false }));
     const outlineMaterial = this.material(new THREE.MeshBasicMaterial({ color: 0x26343b, transparent: true, opacity: 0.76, depthWrite: false, toneMapped: false }));
     const capacity = routeCapacity(this.scenario.width, this.scenario.height);
     const mesh = new THREE.InstancedMesh(
@@ -352,11 +352,11 @@ export class WarehouseRenderer {
     joints.frustumCulled = false;
     joints.count = 0;
     const outline = new THREE.InstancedMesh(
-      this.geometry(new THREE.CylinderGeometry(radius + 0.017, radius + 0.017, 1, 8)),
+      this.geometry(new THREE.CylinderGeometry(radius + 0.012, radius + 0.012, 1, 8)),
       outlineMaterial, mesh.instanceMatrix.count,
     );
     const outlineJoints = new THREE.InstancedMesh(
-      this.geometry(new THREE.SphereGeometry(radius + 0.017, 8, 6)), outlineMaterial, joints.instanceMatrix.count,
+      this.geometry(new THREE.SphereGeometry(radius + 0.012, 8, 6)), outlineMaterial, joints.instanceMatrix.count,
     );
     for (const stroke of [outline, outlineJoints]) {
       stroke.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -693,7 +693,7 @@ export class WarehouseRenderer {
         taskPointCount++;
         group.scale.setScalar(highlighted ? 1.08 : 1);
         ink.opacity = highlighted ? 1 : frame.highlightedOrderId ? 0.4 : 0.7;
-        ink.color.set(highlighted ? 0xc9ee96 : state === "carried" ? frame.orderColors?.[index] ?? 0xcfaf75 : endpoint === 0 ? 0x8db79f : 0xcfaf75);
+        ink.color.set(highlighted ? 0x93b6d8 : state === "carried" ? frame.orderColors?.[index] ?? 0xcfaf75 : endpoint === 0 ? 0x8db79f : 0xcfaf75);
         if (highlighted && !marker.label) {
           marker.label = this.badge(`${endpoint === 0 ? "P" : "D"}${index + 1}`, endpoint === 0 ? "#a2c7b4" : "#dbc08c", "#1b2429", true);
           marker.label.position.set(endpoint === 0 ? -0.12 : 0.12, 0.58, 0);
@@ -727,6 +727,13 @@ export class WarehouseRenderer {
 
   private fitCamera() {
     const aspect = this.sceneWidth / this.sceneHeight;
+    // CSS padding describes the space occupied by floating controls. The canvas
+    // fills the host, while the default camera keeps the recorded floor readable.
+    const style = getComputedStyle(this.host);
+    const left = parseFloat(style.paddingLeft) || 0, right = parseFloat(style.paddingRight) || 0;
+    const top = parseFloat(style.paddingTop) || 0, bottom = parseFloat(style.paddingBottom) || 0;
+    const usableWidth = Math.max(1, this.sceneWidth - left - right);
+    const usableHeight = Math.max(1, this.sceneHeight - top - bottom);
     this.camera.updateMatrixWorld();
     let extentX = 0;
     let extentY = 0;
@@ -739,11 +746,13 @@ export class WarehouseRenderer {
         }
       }
     }
-    const halfHeight = Math.max(extentY, extentX / aspect) * 1.025;
-    this.camera.left = -halfHeight * aspect;
-    this.camera.right = halfHeight * aspect;
-    this.camera.top = halfHeight;
-    this.camera.bottom = -halfHeight;
+    const halfHeight = Math.max(extentY * this.sceneHeight / usableHeight, extentX * this.sceneHeight / usableWidth) * 1.025;
+    const offsetX = (right - left) * halfHeight / this.sceneHeight;
+    const offsetY = (top - bottom) * halfHeight / this.sceneHeight;
+    this.camera.left = -halfHeight * aspect + offsetX;
+    this.camera.right = halfHeight * aspect + offsetX;
+    this.camera.top = halfHeight + offsetY;
+    this.camera.bottom = -halfHeight + offsetY;
     this.camera.updateProjectionMatrix();
   }
 

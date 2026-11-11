@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { factoryFixtures, safetyEdges } from "./factory-layout";
 import { toWorld, type MazeScenario } from "./maze-model";
 
@@ -19,22 +18,22 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   const metal = (color: number, roughness = 0.65, metalness = 0.2) => resources.material(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
   const materials = {
     steel: metal(0x3e4b52, 0.52, 0.5),
-    beam: metal(0xb17b42, 0.64, 0.25),
+    beam: metal(0x737d84, 0.64, 0.25),
     shelf: metal(0x717a7b, 0.63, 0.35),
-    wood: metal(0x8a765a, 0.95, 0),
-    carton: metal(0xad9877, 0.98, 0),
-    lightCarton: metal(0xc0af90, 0.98, 0),
-    tape: metal(0xd0bd93, 0.9, 0),
-    crate: metal(0x617674, 0.8, 0.04),
-    casing: metal(0x97a09e, 0.6, 0.3),
+    wood: metal(0x817969, 0.95, 0),
+    carton: metal(0x9e9685, 0.98, 0),
+    lightCarton: metal(0xb3ad9e, 0.98, 0),
+    tape: metal(0xc3beae, 0.9, 0),
+    crate: metal(0x687a7e, 0.8, 0.04),
+    casing: metal(0x8b969b, 0.6, 0.3),
     dark: metal(0x30383a, 0.7, 0.25),
-    yellow: metal(0xc3a557, 0.88, 0),
+    yellow: metal(0xb39e65, 0.88, 0),
     white: metal(0xc3c9c5, 0.9, 0),
-    wall: metal(0x858d8a, 0.95, 0.02),
+    wall: metal(0x77838a, 0.95, 0.02),
     wallBase: metal(0x414d51, 0.85, 0.12),
     red: metal(0xa95043, 0.7, 0.1),
     screen: resources.material(new THREE.MeshStandardMaterial({ color: 0x426879, emissive: 0x437f93, emissiveIntensity: 0.4, roughness: 0.4 })),
-    light: resources.material(new THREE.MeshStandardMaterial({ color: 0xf4f1db, emissive: 0xfff5d6, emissiveIntensity: 1.5 })),
+    light: resources.material(new THREE.MeshStandardMaterial({ color: 0xe1e7ea, emissive: 0xe1e7ea, emissiveIntensity: 0.6 })),
   };
   type Finish = keyof typeof materials;
   function part(finish: Finish, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) {
@@ -78,8 +77,8 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
     scene.add(mesh);
   }
 
-  scene.add(new THREE.HemisphereLight(0xe1e9ed, 0x41433e, 1.6));
-  const sun = new THREE.DirectionalLight(0xfff3dc, 2.3);
+  scene.add(new THREE.HemisphereLight(0xe1e9ed, 0x38424c, 1.4));
+  const sun = new THREE.DirectionalLight(0xf3f6fa, 2.0);
   sun.position.set(-7, 18, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -98,7 +97,7 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
 
   // Deterministic concrete grain: a small repeating texture, not a large asset.
   const concrete = texture(512, 512, (ctx) => {
-    ctx.fillStyle = "#626c6d";
+    ctx.fillStyle = "#59656e";
     ctx.fillRect(0, 0, 512, 512);
     let seed = 617;
     for (let i = 0; i < 26000; i++) {
@@ -113,7 +112,7 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   concrete.wrapS = concrete.wrapT = THREE.RepeatWrapping;
   concrete.repeat.set(width / 4, height / 4);
   const floorMaterial = resources.material(new THREE.MeshStandardMaterial({ color: 0xffffff, map: concrete, roughness: 0.88, metalness: 0.02 }));
-  const foundation = new THREE.Mesh(resources.geometry(new RoundedBoxGeometry(width + 1.5, 0.28, height + 1.5, 2, 0.06)), metal(0x303b3f));
+  const foundation = new THREE.Mesh(resources.geometry(new THREE.BoxGeometry(width + 1.5, 0.28, height + 1.5)), metal(0x303b3f));
   foundation.position.y = -0.17;
   foundation.castShadow = foundation.receiveShadow = true;
   scene.add(foundation);

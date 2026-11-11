@@ -21,7 +21,7 @@ export function workerFactory(resources: Resources) {
   const brim = resources.geometry(new THREE.CylinderGeometry(1, 1, 1, 12));
   const finish = (color: number) => resources.material(new THREE.MeshStandardMaterial({ color, roughness: 0.85 }));
   const navy = finish(0x354d63), boots = finish(0x26343b), skin = [finish(0xc79776), finish(0x956547), finish(0xe0b48d)];
-  const vests = [finish(0xe7af58), finish(0xc5d891)], reflective = finish(0xe1e9dc), yellow = finish(0xf5d37a);
+  const vests = [finish(0xb69a65), finish(0x9baa7d)], reflective = finish(0xe1e9dc), yellow = finish(0xc8b77e);
   const screen = finish(0x92c4ca);
   function part(parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, size: number[], position: number[]) {
     const mesh = new THREE.Mesh(geometry, material);
@@ -41,9 +41,9 @@ export function workerFactory(resources: Resources) {
     for (const x of [-0.065, 0.065]) part(body, box, reflective, [0.024, 0.23, 0.162], [x, 0.655, 0]);
     head.position.y = 0.86;
     body.add(head);
-    part(head, sphere, skin[index % 3], [0.078, 0.10, 0.074], [0, 0, 0]);
-    part(head, helmet, yellow, [0.095, 0.085, 0.09], [0, 0.053, 0]);
-    part(head, brim, yellow, [0.109, 0.018, 0.105], [0, 0.052, 0.013]);
+    part(head, sphere, skin[index % 3], [0.065, 0.08, 0.063], [0, 0, 0]);
+    part(head, helmet, yellow, [0.08, 0.06, 0.079], [0, 0.053, 0]);
+    part(head, brim, yellow, [0.09, 0.012, 0.09], [0, 0.052, 0.013]);
     const legs = [-1, 1].map(side => {
       const pivot = new THREE.Group();
       pivot.position.set(side * 0.065, 0.49, 0);

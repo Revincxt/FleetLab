@@ -28,12 +28,12 @@ function TaskProgress({ replay, time }: { replay: FleetReplay; time: number }) {
           <desc id={`${chartId}-description`}>{latest.released} released, {latest.delivered} delivered. Counts change at recorded simulation steps. Future tasks are not shown.</desc>
           <defs>
             <linearGradient id={`${chartId}-released-fill`} className="series-released" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="240">
-              <stop offset="0%" stopColor="var(--series-color)" stopOpacity="0.24" />
-              <stop offset="100%" stopColor="var(--series-color)" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="var(--series-color)" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="var(--series-color)" stopOpacity="0" />
             </linearGradient>
             <linearGradient id={`${chartId}-delivered-fill`} className="series-delivered" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="240">
-              <stop offset="0%" stopColor="var(--series-color)" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="var(--series-color)" stopOpacity="0.04" />
+              <stop offset="0%" stopColor="var(--series-color)" stopOpacity="0.14" />
+              <stop offset="100%" stopColor="var(--series-color)" stopOpacity="0.01" />
             </linearGradient>
           </defs>
           <path className="task-area series-released" d={taskAreaPath(history, "released", maximum)} fill={`url(#${chartId}-released-fill)`} />

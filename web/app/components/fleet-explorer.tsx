@@ -16,7 +16,7 @@ import { currentTaskRoutes } from "./task-route-model";
 import { fleetNoticesAt } from "./fleet-notice-model";
 
 const speeds = [0.5, 1, 2] as const;
-const palette = ["#a5ca7a", "#d3a17c", "#b09fc9", "#7fb7c5"];
+const palette = ["#83a9ce", "#c09b72", "#a798bc", "#78afa7"];
 const layoutNames: Record<string, string> = {
   "rack-maze": "Central Aisle",
   "parallel-aisles": "Long Aisles",
@@ -202,10 +202,10 @@ export default function FleetExplorer() {
           <span className="brand-mark"><BrandMark /></span>
           <span className="brand-name">Fleet<span>Lab</span></span>
         </a>
-        <svg className="header-routes" viewBox="0 0 360 32" fill="none" aria-hidden="true" focusable="false">
-          <path d="M0 16h360" stroke="currentColor" strokeOpacity=".12" />
-          <path d="M48 16h64a8 8 0 0 0 8-8h64a8 8 0 0 1 8 8h120" stroke="currentColor" strokeOpacity=".38" />
-          <path d="M96 16h104a8 8 0 0 1 8 8h40a8 8 0 0 0 8-8h40" stroke="currentColor" strokeOpacity=".22" />
+        <svg className="header-routes" viewBox="0 0 360 32" preserveAspectRatio="none" fill="none" aria-hidden="true" focusable="false">
+          <path d="M0 16h360" stroke="currentColor" strokeOpacity=".16" />
+          <path d="M48 16h64a8 8 0 0 0 8-8h64a8 8 0 0 1 8 8h120" stroke="currentColor" strokeOpacity=".65" />
+          <path d="M96 16h104a8 8 0 0 1 8 8h40a8 8 0 0 0 8-8h40" stroke="currentColor" strokeOpacity=".38" />
           <g fill="currentColor"><circle cx="48" cy="16" r="2" /><circle cx="312" cy="16" r="2" /></g>
           <g fill="currentColor" fillOpacity=".5"><circle cx="96" cy="16" r="2" /><circle cx="296" cy="16" r="2" /></g>
         </svg>
@@ -265,6 +265,7 @@ export default function FleetExplorer() {
           <WarehouseScene key={replay.caseId + "-" + algorithmId} scenario={scenario} frame={sceneFrame} traffic={replay.frames} workerMoveSteps={replay.workforce?.moveSteps ?? 1} />
           </div>
           <div className="replay-controls">
+            <output className="replay-position" aria-label="Current replay step" title={simulationStepHint}><span>Step</span><strong>{time.toLocaleString("en-US")}</strong><span>/ {maximumTime.toLocaleString("en-US")}</span></output>
             <div className="timeline-control">
               <input type="range" min="0" max={maximumTime} value={time} aria-label={"Replay step, " + time + " of " + maximumTime} aria-valuetext={`Step ${time} of ${maximumTime}`} title={simulationStepHint} style={{ "--timeline-progress": time / maximumTime * 100 + "%" } as CSSProperties} onChange={(event) => seek(Number(event.target.value))} />
               <div className="timeline-events" role="group" aria-label="Scenario event shortcuts">
