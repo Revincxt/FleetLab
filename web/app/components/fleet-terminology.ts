@@ -44,8 +44,8 @@ export function vehicleStatusHint(vehicle: VehicleState) {
 }
 
 export const statusColors = {
-  idle: "#8e9ca7", working: "#79cdd3", charging: "#b8c88e",
-  waiting: "#e7b981", complete: "#9cd1b6", alert: "#ee9688",
+  idle: "#4a606d", working: "#316b70", charging: "#55662e",
+  waiting: "#80591f", complete: "#2f684f", alert: "#964b3f",
 } as const;
 export const statusToneHints = {
   idle: "Idle", working: "Working", charging: "Charging",
@@ -76,7 +76,7 @@ export function fleetStatusTone(vehicles: VehicleState[]): StatusTone {
 }
 
 export const batteryColors = {
-  healthy: "#9cd1b6", warning: "#e7b981", critical: "#ee9688", charging: "#b8c88e",
+  healthy: "#2f684f", warning: "#80591f", critical: "#964b3f", charging: "#55662e",
 } as const;
 export const batteryToneHints = {
   healthy: "Battery above 40%", warning: "Battery between 21% and 40%",

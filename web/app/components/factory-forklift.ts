@@ -13,8 +13,8 @@ export function buildIndustrialForklift(resources: Resources, color: string) {
   lift.name = "fork-carriage";
   const finish = (color: THREE.ColorRepresentation, roughness = 0.6, metalness = 0.2) =>
     resources.material(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
-  const paint = finish(0x8d979e, 0.5, 0.35), steel = finish(0x3c464a, 0.43, 0.65);
-  const rubber = finish(0x20262a, 0.96, 0), alloy = finish(0x909b9d, 0.38, 0.65);
+  const paint = finish(0x969faa, 0.5, 0.35), steel = finish(0x414d5b, 0.43, 0.65);
+  const rubber = finish(0x20262a, 0.96, 0), alloy = finish(0xa4afb9, 0.38, 0.65);
   const tint = finish(color), dark = finish(0x283136);
   const light = resources.material(new THREE.MeshStandardMaterial({ color: 0xf0ead9, emissive: 0xe5dcbf, emissiveIntensity: 0.7 }));
   const amber = resources.material(new THREE.MeshStandardMaterial({ color: 0xe2ae46, emissive: 0xc77b20, emissiveIntensity: 0.35 }));

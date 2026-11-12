@@ -16,7 +16,7 @@ import { currentTaskRoutes } from "./task-route-model";
 import { fleetNoticesAt } from "./fleet-notice-model";
 
 const speeds = [0.5, 1, 2] as const;
-const palette = ["#83a9ce", "#c09b72", "#a798bc", "#78afa7"];
+const palette = ["#416d98", "#86602e", "#7c5d91", "#39796a"];
 const layoutNames: Record<string, string> = {
   "rack-maze": "Central Aisle",
   "parallel-aisles": "Long Aisles",

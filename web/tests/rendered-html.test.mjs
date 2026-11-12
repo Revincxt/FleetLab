@@ -50,7 +50,7 @@ test("server-renders the production fleet shell", async () => {
   assert.doesNotMatch(html, /Adaptive Agent Lab/);
   assert.match(html, /lang="en"/);
   assert.doesNotMatch(html, /\p{Script=Han}/u);
-  assert.match(html, /name="theme-color" content="#191c22"/);
+  assert.match(html, /name="theme-color" content="#fbf6ec"/);
   assert.match(html, /aria-live="polite"/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
@@ -91,7 +91,7 @@ test("ships all four maps with four shared-world vehicles and no single-car UI",
   assert.doesNotMatch(page, /Scenario library|scenario-option|Compare with|demo-data.json|map-mode-switch/);
   for (const text of ["Fleet status", "Task queue", "algorithmControl", "task-filters", "inspectTask", "highlightedOrderId", "Recorded simulation replay"]) assert.ok(page.includes(text), text);
   assert.match(css, /\.control-workspace/);
-  assert.match(css, /color-scheme: dark/);
+  assert.match(css, /color-scheme: light/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
 
@@ -163,7 +163,7 @@ test("keeps layout selection and the repository link without a Statistics entry"
   assert.match(header, /className="brand" href="#workspace" aria-label="FleetLab home"/);
 });
 
-test("uses shared smoked-glass picker menus without focus frames or legacy pointer-focus flags", async () => {
+test("uses shared glass picker menus without focus frames or legacy pointer-focus flags", async () => {
   const [page, picker, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/algorithm-picker.tsx", import.meta.url), "utf8"),
@@ -174,7 +174,7 @@ test("uses shared smoked-glass picker menus without focus frames or legacy point
   assert.match(focus, /outline: none/);
   const indicator = css.match(/\.compact-picker:has\(\.picker-trigger:focus-visible\) \{([^}]+)\}/)?.[1];
   assert.ok(indicator, "Keyboard users retain a visible focus indicator on the picker shell");
-  assert.match(indicator, /box-shadow: inset 0 -2px 0 #a2afb9/);
+  assert.match(indicator, /box-shadow: inset 0 -2px 0 #698797/);
   assert.doesNotMatch(focus + indicator, /var\(--accent\)|#c9ee96/);
   assert.match(css, /button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible \{ outline: 2px solid var\(--selection\)/);
   assert.match(page, /<CompactPicker className="layout-picker" label="Factory layout"/);
@@ -188,7 +188,7 @@ test("uses shared smoked-glass picker menus without focus frames or legacy point
   assert.match(css, /\.picker-menu \{[^}]*font: 500 var\(--text-body\)\/16px var\(--sans\);[^}]*letter-spacing: normal/);
   assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
   assert.match(css, /\.picker-option\[aria-selected="true"\] \{ font-weight: 600/);
-  assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #ffffff/);
+  assert.match(css, /\.picker-option\[data-active="true"\] \{ color: #2b4d63/);
 });
 
 test("keeps the header routing decoration separate from interactive controls", async () => {
@@ -263,7 +263,7 @@ test("shares a distinctive routing mark and fleet colors without adding decorati
   assert.doesNotMatch(page, />adaptive<|Adaptive Agent Lab home/);
   assert.match(page, /ForkliftGlyph loaded=\{isVehicleLoaded\(robot\)\}/);
   assert.match(page, /--owner-color/);
-  assert.match(css, /--accent: #c8dedc/);
+  assert.match(css, /--accent: #416e80/);
   assert.doesNotMatch(css, /@font-face|fonts\.googleapis/);
 });
 
@@ -374,7 +374,7 @@ test("retains replay actions and accessible focus in the floating glass dock", a
 
 test("shares translucent surface layers while keeping operational colors independent of selection", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  for (const token of ["--canvas: #191c22", "--surface: #292d348f", "--surface-raised:", "--surface-hover:", "--surface-inset: #181b2340", "--selection: #d2d9e5"]) assert.ok(css.includes(token), token);
+  for (const token of ["--canvas: #fbf6ec", "--surface: #fffdf578", "--surface-raised:", "--surface-hover:", "--surface-inset: #b58e5410", "--selection: #4b7188"]) assert.ok(css.includes(token), token);
   for (const component of ["vehicle-card", "charger-card", "task-card"]) {
     const style = css.match(new RegExp(`\\.${component} \\{([^}]+)\\}`))[1];
     assert.match(style, /background: var\(--surface-raised\)/);
@@ -387,7 +387,7 @@ test("shares translucent surface layers while keeping operational colors indepen
   assert.match(css, /\.vehicle-status i \{[^}]*color: var\(--status-color\)/);
   assert.match(css, /\.vehicle-battery-label \{[^}]*color: var\(--battery-color\)/);
   assert.match(css, /\.charger-card\.is-charging \{ --charger-color: var\(--charging\)/);
-  assert.match(css, /\.series-delivered \{ --series-color: #c4dbec/);
+  assert.match(css, /\.series-delivered \{ --series-color: #326776/);
 });
 
 test("omits the bottom legend while keeping scene markers and charger status", async () => {

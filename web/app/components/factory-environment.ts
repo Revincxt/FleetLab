@@ -17,20 +17,20 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   const transform = new THREE.Object3D();
   const metal = (color: number, roughness = 0.65, metalness = 0.2) => resources.material(new THREE.MeshStandardMaterial({ color, roughness, metalness }));
   const materials = {
-    steel: metal(0x3e4b52, 0.52, 0.5),
-    beam: metal(0x727f89, 0.64, 0.25),
-    shelf: metal(0x7d858b, 0.63, 0.35),
-    wood: metal(0x817969, 0.95, 0),
-    carton: metal(0x9e9685, 0.98, 0),
-    lightCarton: metal(0xb3ad9e, 0.98, 0),
-    tape: metal(0xc3beae, 0.9, 0),
-    crate: metal(0x687a7e, 0.8, 0.04),
-    casing: metal(0x8b969b, 0.6, 0.3),
-    dark: metal(0x30383a, 0.7, 0.25),
-    yellow: metal(0xb39e65, 0.88, 0),
-    white: metal(0xc3c9c5, 0.9, 0),
-    wall: metal(0x687782, 0.95, 0.02),
-    wallBase: metal(0x414d51, 0.85, 0.12),
+    steel: metal(0x46515e, 0.52, 0.5),
+    beam: metal(0x7c8793, 0.64, 0.25),
+    shelf: metal(0x969fa9, 0.63, 0.35),
+    wood: metal(0x817d73, 0.95, 0),
+    carton: metal(0xa6a39b, 0.98, 0),
+    lightCarton: metal(0xbdbab3, 0.98, 0),
+    tape: metal(0xcdcbc4, 0.9, 0),
+    crate: metal(0x768895, 0.8, 0.04),
+    casing: metal(0x9ca6af, 0.6, 0.3),
+    dark: metal(0x35414b, 0.7, 0.25),
+    yellow: metal(0xab956b, 0.88, 0),
+    white: metal(0xd1d7db, 0.9, 0),
+    wall: metal(0x89949f, 0.85, 0.08),
+    wallBase: metal(0x606d78, 0.8, 0.16),
     red: metal(0xa95043, 0.7, 0.1),
     screen: resources.material(new THREE.MeshStandardMaterial({ color: 0x426879, emissive: 0x437f93, emissiveIntensity: 0.4, roughness: 0.4 })),
     light: resources.material(new THREE.MeshStandardMaterial({ color: 0xe1e7ea, emissive: 0xe1e7ea, emissiveIntensity: 0.6 })),
@@ -77,8 +77,8 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
     scene.add(mesh);
   }
 
-  scene.add(new THREE.HemisphereLight(0xf0f2f4, 0x474749, 1.25));
-  const sun = new THREE.DirectionalLight(0xf2ede2, 2.65);
+  scene.add(new THREE.HemisphereLight(0xf2f1ec, 0x505351, 1.05));
+  const sun = new THREE.DirectionalLight(0xf4f2ee, 2.95);
   sun.position.set(-7, 18, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -91,19 +91,19 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   sun.shadow.bias = -0.0001;
   sun.shadow.radius = 2;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xd0dde0, 0.65);
+  const fill = new THREE.DirectionalLight(0xe4e7e3, 0.55);
   fill.position.set(8, 9, -5);
   scene.add(fill);
   // A soft pool of light lifts the working floor without flattening its edges.
   // Reuse the key light's shadows; this accent needs no extra shadow pass.
-  const workLight = new THREE.SpotLight(0xdbe7e6, 680, 55, Math.PI / 3, 1, 2);
+  const workLight = new THREE.SpotLight(0xeceee8, 620, 55, Math.PI / 3, 1, 2);
   workLight.position.set(0, 16, 6);
   workLight.target.position.set(0, 0, -1);
   scene.add(workLight, workLight.target);
 
   // Deterministic concrete grain: a small repeating texture, not a large asset.
   const concrete = texture(512, 512, (ctx) => {
-    ctx.fillStyle = "#737978";
+    ctx.fillStyle = "#7d807f";
     ctx.fillRect(0, 0, 512, 512);
     let seed = 617;
     for (let i = 0; i < 26000; i++) {
@@ -111,14 +111,14 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
       const x = seed % 512;
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       const y = seed % 512;
-      ctx.fillStyle = i % 2 ? "#ffffff09" : "#1c27250b";
+      ctx.fillStyle = i % 2 ? "#ffffff09" : "#25303c0b";
       ctx.fillRect(x, y, 1 + i % 3, 1);
     }
   });
   concrete.wrapS = concrete.wrapT = THREE.RepeatWrapping;
   concrete.repeat.set(width / 4, height / 4);
   const floorMaterial = resources.material(new THREE.MeshStandardMaterial({ color: 0xffffff, map: concrete, roughness: 0.88, metalness: 0.02 }));
-  const foundation = new THREE.Mesh(resources.geometry(new THREE.BoxGeometry(width + 1.5, 0.28, height + 1.5)), metal(0x303b3f));
+  const foundation = new THREE.Mesh(resources.geometry(new THREE.BoxGeometry(width + 1.5, 0.28, height + 1.5)), metal(0x424e5a));
   foundation.position.y = -0.17;
   foundation.castShadow = foundation.receiveShadow = true;
   scene.add(foundation);
@@ -130,7 +130,7 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   const seams: THREE.Vector3[] = [];
   for (let x = -width / 2; x <= width / 2; x += 4) seams.push(new THREE.Vector3(x, -0.01, -height / 2 - 0.65), new THREE.Vector3(x, -0.01, height / 2 + 0.65));
   for (let z = -height / 2; z <= height / 2; z += 4) seams.push(new THREE.Vector3(-width / 2 - 0.65, -0.01, z), new THREE.Vector3(width / 2 + 0.65, -0.01, z));
-  scene.add(new THREE.LineSegments(resources.geometry(new THREE.BufferGeometry().setFromPoints(seams)), resources.material(new THREE.LineBasicMaterial({ color: 0x303b3c, transparent: true, opacity: 0.24 }))));
+  scene.add(new THREE.LineSegments(resources.geometry(new THREE.BufferGeometry().setFromPoints(seams)), resources.material(new THREE.LineBasicMaterial({ color: 0x354655, transparent: true, opacity: 0.26 }))));
   const shadowFloor = new THREE.Mesh(resources.geometry(new THREE.PlaneGeometry(width * 4, height * 4)), resources.material(new THREE.ShadowMaterial({ opacity: 0.18 })));
   shadowFloor.rotation.x = -Math.PI / 2;
   shadowFloor.position.y = -0.32;

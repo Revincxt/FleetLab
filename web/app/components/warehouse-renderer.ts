@@ -322,7 +322,7 @@ export class WarehouseRenderer {
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.025;
-    const badge = this.badge(letter, color, "#1b2429", true);
+    const badge = this.badge(letter, "#f4f7fa", color, true);
     badge.position.y = 1.45;
     // The carriage carries both forks and cargo; empty forks return to floor height.
     const payload = buildForkliftPayload({ geometry: (value) => this.geometry(value), material: (value) => this.material(value) });
@@ -466,7 +466,7 @@ export class WarehouseRenderer {
       visual.tint.color.set(data.color);
       const material = visual.badge.material;
       if (material.map) { material.map.dispose(); this.textures.delete(material.map); }
-      material.map = this.labelTexture(label, data.color, "#1b2429");
+      material.map = this.labelTexture(label, "#f4f7fa", data.color);
       material.needsUpdate = true;
       visual.group.traverse((object) => {
         if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial) object.material.color.set(data.color);
