@@ -558,7 +558,7 @@ test("uses the shared icon renderer and avoids redundant ready guards in visible
   }
   assert.match(scene, /\{ready \? <div className="scene-camera-tools">/);
   assert.match(scene, /disabled=\{zoom >= 275\}/);
-  assert.match(scene, /disabled=\{zoom <= 65\}/);
+  assert.match(scene, /disabled=\{zoom <= 100\}/);
   assert.doesNotMatch(scene, /CameraIcon|cameraIcons|disabled=\{!ready/);
   assert.doesNotMatch(css, /\.sr-only|\bcaption \{/);
   assert.match(css, /\.camera-controls svg \{ width: 17px; height: 17px/);

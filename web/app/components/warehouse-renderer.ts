@@ -133,7 +133,7 @@ export class WarehouseRenderer {
       this.controls.enableDamping = false;
       this.controls.minPolarAngle = 0;
       this.controls.maxPolarAngle = Math.PI * 0.39;
-      this.controls.minZoom = 0.65;
+      this.controls.minZoom = 1;
       this.controls.maxZoom = 2.75;
       this.controls.rotateSpeed = 0.65;
       this.controls.zoomSpeed = 0.7;
@@ -627,9 +627,7 @@ export class WarehouseRenderer {
       stripe.rotation.z = -0.35;
       group.add(stripe);
     }
-    const label = this.badge("×", "#b64936", "#fff4ef");
-    label.position.y = 0.98;
-    group.add(barrier, label);
+    group.add(barrier);
     this.scene.add(group);
     return group;
   }

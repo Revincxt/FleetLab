@@ -82,7 +82,7 @@ function WarehouseScene({ scenario, frame, traffic, workerMoveSteps }: {
             <Icon name="plus" />
           </button>
           <output aria-label="Camera zoom">{zoom}%</output>
-          <button disabled={zoom <= 65} onClick={() => runtime.current?.zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out (−)">
+          <button disabled={zoom <= 100} onClick={() => runtime.current?.zoomBy(1 / 1.2)} aria-label="Zoom out" title="Zoom out (−)">
             <Icon name="minus" />
           </button>
         </div>
