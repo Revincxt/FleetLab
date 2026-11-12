@@ -350,39 +350,27 @@ test("keeps step details on the slider and gives fleet activity and battery thei
   assert.match(css, /\.vehicle-battery-track i \{[^}]*background: var\(--battery-color\)/);
 });
 
-test("centers playback and speed controls together as one compact group", async () => {
+test("centers the main transport between restart and playback speed", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const row = css.match(/\.transport-row \{([^}]+)\}/)[1];
-  assert.match(row, /display: flex/);
-  assert.match(row, /justify-content: center/);
-  assert.match(row, /gap: 24px/);
-  assert.match(row, /width: fit-content/);
-  assert.match(row, /margin: 4px auto 0/);
-  assert.doesNotMatch(row, /grid-template-columns|space-between/);
-  assert.doesNotMatch(css.match(/\.speed-control \{([^}]+)\}/)[1], /margin-left: auto/);
+  assert.match(row, /grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.transport-controls \{[^}]*grid-column: 2/);
+  assert.match(css, /\.speed-control \{[^}]*grid-column: 3;[^}]*justify-self: end/);
+  assert.match(css, /\.transport-controls \.restart-button \{[^}]*left: 0/);
 });
 
-test("groups replay actions in a compact floating dock", async () => {
+test("retains replay actions and accessible focus in the floating glass dock", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/components/fleet-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   const playback = css.slice(css.indexOf('.replay-controls {'), css.indexOf('.task-panel-content {'));
-  const footer = playback.match(/\.replay-controls \{([^}]+)\}/)[1];
-  assert.match(footer, /position: absolute/);
-  assert.match(footer, /background: var\(--glass-overlay\)/);
-  assert.doesNotMatch(playback, /var\(--accent\)|#c9ee96|#ddf5b9|#e2f7c4/);
-  assert.match(playback, /\.transport-row \{[^}]*border: 0;[^}]*background: transparent/);
-  assert.doesNotMatch(playback, /border-radius: 999px/);
-  assert.match(playback, /\.transport-controls \.play-button \{[^}]*background: #e7ebf0;[^}]*color: #252a32;[^}]*border-radius: 6px/);
+  assert.match(playback, /\.replay-controls \{[^}]*position: absolute/);
   assert.match(playback, /\.transport-controls \.play-button:hover:not\(:disabled\)/);
-  assert.match(playback, /\.speed-control \{[^}]*padding: 2px;[^}]*background: #ffffff04/);
-  assert.doesNotMatch(playback.match(/\.speed-control \{([^}]+)\}/)[1], /border-left|margin-left: auto/);
-  assert.match(playback, /\.speed-control button\.is-active \{[^}]*background: #ffffff16/);
   assert.match(playback, /\.replay-controls :is\(button, input\):focus-visible \{ outline: 2px solid var\(--replay-highlight\)/);
   assert.match(playback, /::-webkit-slider-runnable-track \{[^}]*var\(--replay-highlight\)/);
   assert.match(playback, /::-moz-range-progress \{[^}]*var\(--replay-highlight\)/);
-  for (const retained of ['aria-label="Restart replay"', 'aria-label="Previous time step"', 'aria-label="Next time step"', 'aria-keyshortcuts="Space"', 'onChange={(event) => seek(Number(event.target.value))}', 'aria-pressed={speed === rate}', 'onClick={() => setSpeed(rate)}']) assert.ok(page.includes(retained), retained);
+  for (const retained of ['aria-label="Restart replay"', 'aria-label="Previous time step"', 'aria-label="Next time step"', 'aria-keyshortcuts="Space"', 'aria-pressed={playing}', 'onChange={(event) => seek(Number(event.target.value))}', 'aria-pressed={speed === rate}', 'onClick={() => setSpeed(rate)}']) assert.ok(page.includes(retained), retained);
 });
 
 test("shares translucent surface layers while keeping operational colors independent of selection", async () => {

@@ -273,10 +273,10 @@ export default function FleetExplorer() {
             </div>
             <div className="transport-row">
               <div className="transport-controls" role="group" aria-label="Replay transport">
-                <button onClick={() => seek(0)} disabled={!time && !playing} aria-label="Restart replay" title="Restart replay"><Icon name="restart" /></button>
-                <button onClick={() => seek(time - 1)} disabled={!time} aria-label="Previous time step" title="Previous step (←)"><Icon name="back" /></button>
-                <button className="play-button" disabled={loadingAlgorithm} onClick={() => { if (complete) setTime(0); setPlaying((value) => !value); }} aria-label={playing ? "Pause replay" : complete ? "Replay from start" : "Play replay"} aria-keyshortcuts="Space" title="Play / pause (Space)"><Icon name={playing ? "pause" : "play"} /></button>
-                <button onClick={() => seek(time + 1)} disabled={complete} aria-label="Next time step" title="Next step (→)"><Icon name="next" /></button>
+                <button className="restart-button" onClick={() => seek(0)} disabled={!time && !playing} aria-label="Restart replay" title="Restart replay"><Icon name="restart" /></button>
+                <button className="step-button" onClick={() => seek(time - 1)} disabled={!time} aria-label="Previous time step" title="Previous step (←)"><Icon name="back" /></button>
+                <button className="play-button" disabled={loadingAlgorithm} onClick={() => { if (complete) setTime(0); setPlaying((value) => !value); }} aria-label={playing ? "Pause replay" : complete ? "Replay from start" : "Play replay"} aria-pressed={playing} aria-keyshortcuts="Space" title="Play / pause (Space)"><Icon name={playing ? "pause" : "play"} /></button>
+                <button className="step-button" onClick={() => seek(time + 1)} disabled={complete} aria-label="Next time step" title="Next step (→)"><Icon name="next" /></button>
               </div>
               <div className="speed-control" role="group" aria-label="Playback speed">{speeds.map((rate) => <button key={rate} className={speed === rate ? "is-active" : ""} aria-pressed={speed === rate} onClick={() => setSpeed(rate)}>{rate}×</button>)}</div>
             </div>
