@@ -77,8 +77,8 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
     scene.add(mesh);
   }
 
-  scene.add(new THREE.HemisphereLight(0xe1e9ed, 0x273542, 1.15));
-  const sun = new THREE.DirectionalLight(0xdce9f6, 2.3);
+  scene.add(new THREE.HemisphereLight(0xf0f2f4, 0x474749, 1.25));
+  const sun = new THREE.DirectionalLight(0xf2ede2, 2.65);
   sun.position.set(-7, 18, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -91,19 +91,19 @@ export function buildFactoryEnvironment(scene: THREE.Scene, scenario: MazeScenar
   sun.shadow.bias = -0.0001;
   sun.shadow.radius = 2;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0x99c2da, 0.5);
+  const fill = new THREE.DirectionalLight(0xd0dde0, 0.65);
   fill.position.set(8, 9, -5);
   scene.add(fill);
   // A soft pool of light lifts the working floor without flattening its edges.
   // Reuse the key light's shadows; this accent needs no extra shadow pass.
-  const workLight = new THREE.SpotLight(0xb8deed, 620, 55, Math.PI / 3, 1, 2);
+  const workLight = new THREE.SpotLight(0xdbe7e6, 680, 55, Math.PI / 3, 1, 2);
   workLight.position.set(0, 16, 6);
   workLight.target.position.set(0, 0, -1);
   scene.add(workLight, workLight.target);
 
   // Deterministic concrete grain: a small repeating texture, not a large asset.
   const concrete = texture(512, 512, (ctx) => {
-    ctx.fillStyle = "#535f69";
+    ctx.fillStyle = "#737978";
     ctx.fillRect(0, 0, 512, 512);
     let seed = 617;
     for (let i = 0; i < 26000; i++) {

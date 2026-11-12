@@ -50,7 +50,7 @@ test("server-renders the production fleet shell", async () => {
   assert.doesNotMatch(html, /Adaptive Agent Lab/);
   assert.match(html, /lang="en"/);
   assert.doesNotMatch(html, /\p{Script=Han}/u);
-  assert.match(html, /name="theme-color" content="#090d14"/);
+  assert.match(html, /name="theme-color" content="#191c22"/);
   assert.match(html, /aria-live="polite"/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
@@ -183,7 +183,7 @@ test("uses shared smoked-glass picker menus without focus frames or legacy point
   assert.match(picker, /value=\{value\} disabled=\{loading\} options=\{algorithmOptions\} onChange=\{onChange\}/);
   assert.doesNotMatch(page + picker + css, /<select\b|data-pointer-focus|\.layout-picker select|\.algorithm-picker select/);
   assert.match(css, /\.picker-popover \{[^}]*width: max-content;[^}]*max-width: calc\(100vw - 32px\)/);
-  assert.match(css, /\.picker-menu \{[^}]*border-radius: 8px;[^}]*background: var\(--glass-overlay\)/);
+  assert.match(css, /\.picker-menu \{[^}]*border-radius: 8px;[^}]*background:[^;]*var\(--glass-overlay\)/);
   assert.match(css, /\.picker-menu \{[^}]*--picker-row-height: 28px;[^}]*padding: 4px/);
   assert.match(css, /\.picker-menu \{[^}]*font: 500 var\(--text-body\)\/16px var\(--sans\);[^}]*letter-spacing: normal/);
   assert.match(css, /\.picker-option \{[^}]*height: var\(--picker-row-height\)/);
@@ -207,10 +207,9 @@ test("keeps the header routing decoration separate from interactive controls", a
   assert.match(headerStyle, /border: 0; border-bottom: 1px solid[^;]+; border-radius: 0/);
   assert.doesNotMatch(headerStyle, /overflow: hidden/);
   assert.doesNotMatch(css, /\.app-header \{[^}]*margin-inline/);
-  assert.match(headerStyle, /box-shadow: none/);
   assert.doesNotMatch(css.match(/\.header-actions \{([^}]+)\}/)[1], /border:|background:|box-shadow:/);
   assert.match(css, /\.repository-link \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none/);
-  assert.doesNotMatch(css.match(/\.repository-link:hover \{([^}]+)\}/)[1], /background:|border:|box-shadow:/);
+  assert.doesNotMatch(css.match(/\.repository-link:hover \{([^}]+)\}/)[1], /border:|box-shadow:/);
   assert.doesNotMatch(css, /\.repository-link::before/);
   assert.match(css, /\.header-routes \{[^}]*pointer-events: none/);
   assert.doesNotMatch(css, /\.header-routes \{[^}]*display: none/);
@@ -264,7 +263,7 @@ test("shares a distinctive routing mark and fleet colors without adding decorati
   assert.doesNotMatch(page, />adaptive<|Adaptive Agent Lab home/);
   assert.match(page, /ForkliftGlyph loaded=\{isVehicleLoaded\(robot\)\}/);
   assert.match(page, /--owner-color/);
-  assert.match(css, /--accent: #b5d8ed/);
+  assert.match(css, /--accent: #c8dedc/);
   assert.doesNotMatch(css, /@font-face|fonts\.googleapis/);
 });
 
@@ -375,14 +374,14 @@ test("retains replay actions and accessible focus in the floating glass dock", a
 
 test("shares translucent surface layers while keeping operational colors independent of selection", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  for (const token of ["--canvas: #090d14", "--surface: #11192394", "--surface-raised: #ffffff02", "--surface-hover: #ffffff0a", "--surface-inset: #070c1440", "--selection: #c2cfdf"]) assert.ok(css.includes(token), token);
+  for (const token of ["--canvas: #191c22", "--surface: #292d348f", "--surface-raised:", "--surface-hover:", "--surface-inset: #181b2340", "--selection: #d2d9e5"]) assert.ok(css.includes(token), token);
   for (const component of ["vehicle-card", "charger-card", "task-card"]) {
     const style = css.match(new RegExp(`\\.${component} \\{([^}]+)\\}`))[1];
     assert.match(style, /background: var\(--surface-raised\)/);
     assert.doesNotMatch(style, /backdrop-filter/, "Repeated cards do not blur or composite the moving scene");
   }
   assert.match(css, /\.task-filters \{[^}]*background: transparent/);
-  assert.match(css, /\.charger-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); gap: 1px;[^}]*overflow: hidden/);
+  assert.match(css, /\.charger-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*overflow: hidden/);
   assert.match(css, /\.charger-card \{[^}]*border: 0/);
   assert.match(css, /\.task-card\.is-selected \{[^}]*var\(--selection\)/);
   assert.match(css, /\.vehicle-status i \{[^}]*color: var\(--status-color\)/);
