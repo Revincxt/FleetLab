@@ -18,9 +18,13 @@ class MLPQNetworkTests(unittest.TestCase):
         network = MLPQNetwork(2, 2, (8,), seed=3)
         states = np.asarray([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
         targets = np.asarray([[1.0, -1.0], [-1.0, 1.0], [0.5, 0.5]])
+        training_states = np.repeat(states, 2, axis=0)
+        actions = np.tile([0, 1], len(states))
         initial = float(np.mean((network.predict(states) - targets) ** 2))
         for _ in range(200):
-            network.train_batch(states, targets, learning_rate=0.02, max_grad_norm=5.0)
+            network.train_td_batch(
+                training_states, actions, targets.ravel(), learning_rate=0.02, max_grad_norm=5.0
+            )
         final = float(np.mean((network.predict(states) - targets) ** 2))
         self.assertLess(final, initial * 0.25)
 
@@ -34,24 +38,10 @@ class MLPQNetworkTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             network.train_td_batch(states, [1, 3], targets)
 
-    def test_copy_soft_update_and_json_round_trip(self) -> None:
+    def test_copy_and_json_round_trip(self) -> None:
         source = MLPQNetwork(2, 2, (4,), seed=1)
-        target = MLPQNetwork(2, 2, (4,), seed=2)
         probe = np.asarray([[0.25, -0.5]])
-        target_before = target.state_dict()
-        source_state = source.state_dict()
         source_values = source.predict(probe)
-        target.soft_update_from(source, 0.25)
-        updated = target.state_dict()
-        for old, origin, blended in zip(
-            target_before["weights"],
-            source_state["weights"],
-            updated["weights"],
-            strict=True,
-        ):
-            np.testing.assert_allclose(
-                blended, 0.75 * np.asarray(old) + 0.25 * np.asarray(origin), atol=1e-12
-            )
 
         state = source.state_dict()
         json.dumps(state)

@@ -7,7 +7,6 @@ processes.  Experiment seeds therefore use a stable BLAKE2 digest instead.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
 
 MAX_SEED = 2**63 - 1
 
@@ -23,17 +22,3 @@ def derive_seed(root_seed: int, *labels: object) -> int:
         digest.update(b"\x00")
         digest.update(str(label).encode("utf-8"))
     return int.from_bytes(digest.digest(), "big") & MAX_SEED
-
-
-@dataclass(frozen=True, slots=True)
-class SeedBook:
-    """Named seed namespaces for one experiment root."""
-
-    root: int
-
-    def for_events(self, scenario_index: int) -> int:
-        return derive_seed(self.root, "events", scenario_index)
-
-    def for_agent(self, agent_name: str, replicate: int = 0) -> int:
-        return derive_seed(self.root, "agent", agent_name, replicate)
-

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -305,39 +304,4 @@ def _state_nonnegative_int(state: Mapping[str, object], key: str) -> int:
     return value
 
 
-def config_from_mapping(data: Mapping[str, object]) -> DQNConfig:
-    """Construct a validated config from JSON-compatible input."""
-
-    hidden = data.get("hidden_sizes", (64, 64))
-    if not isinstance(hidden, Sequence) or isinstance(hidden, (str, bytes)):
-        raise TypeError("hidden_sizes must be an array")
-    return DQNConfig(
-        hidden_sizes=tuple(int(value) for value in hidden),
-        gamma=float(cast(str | int | float, data.get("gamma", 0.99))),
-        learning_rate=float(cast(str | int | float, data.get("learning_rate", 1e-3))),
-        batch_size=int(cast(str | int | float, data.get("batch_size", 32))),
-        replay_capacity=int(
-            cast(str | int | float, data.get("replay_capacity", 10_000))
-        ),
-        warmup_steps=int(cast(str | int | float, data.get("warmup_steps", 200))),
-        update_every=int(cast(str | int | float, data.get("update_every", 1))),
-        target_sync_interval=int(
-            cast(str | int | float, data.get("target_sync_interval", 200))
-        ),
-        epsilon_start=float(cast(str | int | float, data.get("epsilon_start", 1.0))),
-        epsilon_end=float(cast(str | int | float, data.get("epsilon_end", 0.05))),
-        epsilon_decay_steps=int(
-            cast(str | int | float, data.get("epsilon_decay_steps", 5_000))
-        ),
-        max_grad_norm=float(cast(str | int | float, data.get("max_grad_norm", 10.0))),
-        guidance_probability=float(
-            cast(str | int | float, data.get("guidance_probability", 0.0))
-        ),
-        guidance_bias=float(cast(str | int | float, data.get("guidance_bias", 0.0))),
-        progress_reward=float(
-            cast(str | int | float, data.get("progress_reward", 0.0))
-        ),
-    )
-
-
-__all__ = ["DQNAgent", "DQNConfig", "config_from_mapping"]
+__all__ = ["DQNAgent", "DQNConfig"]

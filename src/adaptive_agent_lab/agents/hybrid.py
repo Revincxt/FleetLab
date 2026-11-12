@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -67,16 +66,6 @@ class HybridConfig:
             or self.battery_reserve < 0
         ):
             raise ValueError("battery_reserve must be a non-negative integer")
-
-    @property
-    def hidden_sizes(self) -> tuple[int, ...]:
-        """Compatibility alias matching the lower-level network terminology."""
-
-        return self.hidden
-
-    @property
-    def learning_rate(self) -> float:
-        return float(self.lr)
 
 
 class HybridAgent(Agent):
@@ -588,22 +577,4 @@ def _state_nonnegative_int(state: Mapping[str, object], key: str) -> int:
     return value
 
 
-def config_from_mapping(data: Mapping[str, object]) -> HybridConfig:
-    """Construct a validated config from JSON-compatible data."""
-
-    raw_hidden = data.get("hidden", data.get("hidden_sizes", (64, 64)))
-    if not isinstance(raw_hidden, Sequence) or isinstance(raw_hidden, (str, bytes)):
-        raise TypeError("hidden must be an array")
-    return HybridConfig(
-        hidden=tuple(int(value) for value in raw_hidden),
-        gamma=float(cast(str | int | float, data.get("gamma", 0.99))),
-        lr=float(
-            cast(str | int | float, data.get("lr", data.get("learning_rate", 1e-3)))
-        ),
-        epsilon=float(cast(str | int | float, data.get("epsilon", 0.10))),
-        battery_reserve=int(cast(str | int | float, data.get("battery_reserve", 2))),
-        max_grad_norm=float(cast(str | int | float, data.get("max_grad_norm", 10.0))),
-    )
-
-
-__all__ = ["HybridAgent", "HybridConfig", "config_from_mapping"]
+__all__ = ["HybridAgent", "HybridConfig"]

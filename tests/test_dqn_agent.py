@@ -5,11 +5,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from adaptive_agent_lab.agents.dqn import (
-    DQNAgent,
-    DQNConfig,
-    config_from_mapping,
-)
+from adaptive_agent_lab.agents.dqn import DQNAgent, DQNConfig
 from adaptive_agent_lab.environment.contracts import (
     Action,
     Order,
@@ -222,21 +218,6 @@ class DQNConfigTests(unittest.TestCase):
         for arguments in invalid_arguments:
             with self.subTest(arguments=arguments), self.assertRaises(ValueError):
                 DQNConfig(**arguments)
-
-    def test_config_mapping_supports_json_values_and_rejects_string_hidden_layers(self) -> None:
-        config = config_from_mapping(
-            {
-                "hidden_sizes": [16],
-                "gamma": "0.8",
-                "batch_size": "4",
-                "warmup_steps": "0",
-            }
-        )
-        self.assertEqual(config.hidden_sizes, (16,))
-        self.assertEqual(config.gamma, 0.8)
-        self.assertEqual(config.batch_size, 4)
-        with self.assertRaises(TypeError):
-            config_from_mapping({"hidden_sizes": "16,16"})
 
     def test_constructor_requires_a_dqn_config(self) -> None:
         with self.assertRaises(TypeError):

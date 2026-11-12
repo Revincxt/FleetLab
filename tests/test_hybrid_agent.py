@@ -6,11 +6,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from adaptive_agent_lab.agents.hybrid import (
-    HybridAgent,
-    HybridConfig,
-    config_from_mapping,
-)
+from adaptive_agent_lab.agents.hybrid import HybridAgent, HybridConfig
 from adaptive_agent_lab.environment.contracts import (
     Action,
     Order,
@@ -476,22 +472,6 @@ class HybridConfigTests(unittest.TestCase):
         for arguments in invalid_arguments:
             with self.subTest(arguments=arguments), self.assertRaises((TypeError, ValueError)):
                 HybridConfig(**arguments)  # type: ignore[arg-type]
-
-    def test_config_mapping_supports_compatibility_names(self) -> None:
-        config = config_from_mapping(
-            {
-                "hidden_sizes": [16],
-                "learning_rate": "0.02",
-                "gamma": "0.8",
-                "battery_reserve": "3",
-            }
-        )
-        self.assertEqual(config.hidden_sizes, (16,))
-        self.assertEqual(config.learning_rate, 0.02)
-        self.assertEqual(config.gamma, 0.8)
-        self.assertEqual(config.battery_reserve, 3)
-        with self.assertRaises(TypeError):
-            config_from_mapping({"hidden": "16,16"})
 
     def test_constructor_and_uninitialized_properties_fail_descriptively(self) -> None:
         with self.assertRaises(TypeError):

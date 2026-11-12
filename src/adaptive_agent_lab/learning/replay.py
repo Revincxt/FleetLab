@@ -26,12 +26,6 @@ class Transition(Generic[StateT, ActionT]):
     next_state: StateT
     done: bool
 
-    @property
-    def terminated(self) -> bool:
-        """Expose Gym-style terminology without coupling to Gym itself."""
-
-        return self.done
-
 
 @dataclass(frozen=True, slots=True)
 class ReplayBatch:
@@ -62,14 +56,6 @@ class ReplayBuffer(Generic[StateT, ActionT]):
         self._storage: list[Transition[StateT, ActionT] | None] = [None] * capacity
         self._size = 0
         self._next_index = 0
-
-    @property
-    def capacity(self) -> int:
-        return self._capacity
-
-    @property
-    def is_full(self) -> bool:
-        return self._size == self._capacity
 
     def __len__(self) -> int:
         return self._size

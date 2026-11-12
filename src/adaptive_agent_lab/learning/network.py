@@ -79,36 +79,6 @@ class MLPQNetwork:
         output, _, _ = self._forward(batch)
         return output[0].copy() if single else output.copy()
 
-    def train_batch(
-        self,
-        inputs: npt.ArrayLike,
-        targets: npt.ArrayLike,
-        *,
-        learning_rate: float = 1e-3,
-        max_grad_norm: float | None = None,
-    ) -> float:
-        """Take one gradient step on mean-squared error for full Q targets."""
-
-        batch, _ = self._validated_inputs(inputs)
-        target_batch = np.asarray(targets, dtype=np.float64)
-        if target_batch.ndim == 1 and batch.shape[0] == 1:
-            target_batch = target_batch.reshape(1, -1)
-        expected = (batch.shape[0], self.output_dim)
-        if target_batch.shape != expected:
-            raise ValueError(f"targets must have shape {expected}, got {target_batch.shape}")
-        self._require_finite(target_batch, "targets")
-
-        predictions, activations, preactivations = self._forward(batch)
-        difference = predictions - target_batch
-        with np.errstate(over="ignore", invalid="ignore"):
-            loss = float(np.mean(np.square(difference)))
-        if not np.isfinite(loss):
-            raise FloatingPointError("loss is not finite")
-        output_gradient = (2.0 / difference.size) * difference
-        gradients = self._backward(output_gradient, activations, preactivations)
-        self._apply_gradients(gradients, learning_rate, max_grad_norm)
-        return loss
-
     def train_td_batch(
         self,
         states: npt.ArrayLike,
@@ -156,22 +126,6 @@ class MLPQNetwork:
         clone._weights = [weights.copy() for weights in self._weights]
         clone._biases = [biases.copy() for biases in self._biases]
         return clone
-
-    def soft_update_from(self, source: MLPQNetwork, tau: float) -> None:
-        """Move this network's parameters toward ``source`` by fraction ``tau``."""
-
-        self._require_compatible(source)
-        if isinstance(tau, bool) or not np.isfinite(tau) or not 0.0 <= tau <= 1.0:
-            raise ValueError("tau must be finite and in [0, 1]")
-        blend = float(tau)
-        self._weights = [
-            (1.0 - blend) * target + blend * origin
-            for target, origin in zip(self._weights, source._weights, strict=True)
-        ]
-        self._biases = [
-            (1.0 - blend) * target + blend * origin
-            for target, origin in zip(self._biases, source._biases, strict=True)
-        ]
 
     def state_dict(self) -> dict[str, object]:
         """Return parameters and architecture using JSON-serializable values."""
@@ -354,10 +308,6 @@ class MLPQNetwork:
             raise FloatingPointError("parameter update produced non-finite values")
         self._weights = new_weights
         self._biases = new_biases
-
-    def _require_compatible(self, other: MLPQNetwork) -> None:
-        if not isinstance(other, MLPQNetwork) or other.layer_sizes != self.layer_sizes:
-            raise ValueError("networks must have identical architectures")
 
     @staticmethod
     def _require_finite(values: FloatArray, name: str) -> None:

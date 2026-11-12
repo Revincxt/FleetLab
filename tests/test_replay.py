@@ -25,7 +25,6 @@ class ReplayBufferTests(unittest.TestCase):
         for value in range(5):
             buffer.add(np.asarray([value]), value, float(value), np.asarray([value + 1]), False)
         self.assertEqual(len(buffer), 3)
-        self.assertTrue(buffer.is_full)
         self.assertEqual([item.action for item in buffer.transitions()], [2, 3, 4])
         self.assertEqual({item.action for item in buffer.sample(3)}, {2, 3, 4})
 

@@ -46,9 +46,6 @@ _LOWER_IS_BETTER = frozenset(
         "constraint_violations",
         "decision_time_ms",
         "steps",
-        "mean_tardiness_ticks",
-        "movement_steps",
-        "energy_used",
         "astar_nodes_expanded",
         "replan_count",
     )
@@ -138,7 +135,7 @@ class EvaluationBlock:
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkConfig:
-    """The executable subset of ``configs/benchmarks/main.json``."""
+    """Validated execution settings from ``configs/benchmarks/main.json``."""
 
     schema_version: str
     suite_id: str
@@ -232,7 +229,7 @@ class BenchmarkEpisodeRecord:
         return self.result.metrics
 
     def metric_values(self) -> dict[str, MetricValue]:
-        """Return canonical metrics plus protocol-facing aliases."""
+        """Return episode metrics and planner diagnostics."""
 
         metrics = {
             field.name: cast(MetricValue, getattr(self.result.metrics, field.name))
@@ -240,10 +237,6 @@ class BenchmarkEpisodeRecord:
         }
         metrics.update(
             {
-                "total_task_utility": self.result.metrics.total_reward,
-                "mean_tardiness_ticks": self.result.metrics.mean_lateness,
-                "movement_steps": self.result.metrics.valid_movement_steps,
-                "energy_used": self.result.metrics.valid_movement_steps,
                 "astar_nodes_expanded": self.result.diagnostics.expanded_nodes,
                 "replan_count": self.result.diagnostics.planning_calls,
             }

@@ -10,7 +10,5 @@ __pycache__/
 build/
 dist/
 runs/*
-!runs/.gitkeep
 models/*
-!models/.gitkeep
 web/node_modules/
